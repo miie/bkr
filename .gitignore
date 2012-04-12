@@ -1,0 +1,4 @@
+*.o
+*.hs~
+*.hi
+.DS_Store
