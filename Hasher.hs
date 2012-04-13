@@ -1,4 +1,5 @@
 
+
 module Hasher ( getFileHash
               , getHashForString
               ) where
@@ -7,9 +8,16 @@ import Data.Digest.Pure.MD5 (md5, MD5Digest)
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.UTF8 as B
 
+--import qualified Crypto.Hash.MD5 as CH
+--import qualified Data.ByteString.UTF8 as SB
+--import System.IO.Strict (SIO)
+--import qualified System.IO.Strict as SIO
+
 {-| Gets a MD5Digest for a file. |-}
 getFileHash :: FilePath -> IO MD5Digest
-getFileHash path = L.readFile path >>= return . md5
+getFileHash path = do
+     --print "Getting Hash"
+     L.readFile path >>= return . md5
 
 {-| Gets a MD5Digest for a String. Example:
 @
