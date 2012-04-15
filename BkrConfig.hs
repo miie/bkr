@@ -8,6 +8,8 @@ module BkrConfig ( getConfPairsFromFile
                  , getConfPairsFromByteString
                  , getConfPairsFromByteString'
                  , writeBkrMetaFile
+                 , getValue
+                 , getValueS
                  ) where
 
 import qualified Data.Text as T
@@ -16,8 +18,8 @@ import System.IO
 import qualified System.IO.Strict as S
 import qualified Data.ByteString.Char8 as BS
 
-import System.Directory (getTemporaryDirectory)
-import System.IO
+import System.Directory (getTemporaryDirectory, getModificationTime)
+--import System.IO
 import Hasher
 import Control.Monad (mapM)
 
@@ -122,14 +124,16 @@ writeBkrMetaFile confPair = do
      -- Get tmp dir
      tmpDir <- getTemporaryDirectory
      -- Get hash of the file name
-     let fileHash = show $ getHashForString $ fst confPair
-     -- Get the full file path to the .bkrm file
-     let fullPath = tmpDir ++ fileHash ++ ".bkrm"
+     let fullPathHash = show $ getHashForString $ fst confPair
+     -- Get the full file path to the .bkrm file (<full path hash:file hash.bkrm>)
+     let fullPath = tmpDir ++ fullPathHash ++ "." ++ (snd confPair)
+     -- Get file modification time
+     modTime <- getModificationTime $ fst confPair 
      -- Open a file handle
      hndl <- openBinaryFile fullPath WriteMode
      -- Map over a list of the lines to write to the file
      let hPutStrLnHndl = hPutStrLn hndl
-     mapM hPutStrLnHndl ["[File]", ("fullpath: " ++ fst confPair), ("checksum: " ++ snd confPair)]
+     mapM hPutStrLnHndl ["[BkrMetaInfo]", ("fullpath: " ++ fst confPair), ("checksum: " ++ snd confPair), ("modificationtime: " ++ (show modTime)), ("fullpathchecksum: " ++ (show (getHashForString $ fst confPair))), ("modificationtimechecksum: " ++ (show (getHashForString $ show modTime)))]
      -- Close the handle and return the file path
      hClose hndl
      return fullPath
