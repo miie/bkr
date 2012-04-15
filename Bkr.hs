@@ -3,9 +3,10 @@ import BkrFundare
 import qualified BkrLocalFile as F
 import qualified BkrS3Bucket as S3B
 import BkrConfig
-import List (filter)
+import List (filter, zip3)
 import System.Directory (removeFile)
 import Control.Monad (mapM, forM)
+import Data.Maybe (fromJust)
 
 main :: IO ()
 main = do
@@ -16,27 +17,34 @@ main = do
      --print $ show bkrS3Meta
      -- Get local BkrMeta objects
      print "Getting local files"
-     bkrLocalMeta <- F.getBkrObjects "/Users/michaelsmietana/Pictures/Annat"
+     confPairs <- getConfPairsFromFileS' "bkr.conf"
+     --bkrLocalMeta <- F.getBkrObjects "/Users/michaelsmietana/Pictures/Annat"
+     bkrLocalMeta <- F.getBkrObjects $ fromJust $ getValueS "folderstobackup" confPairs
      --print $ show bkrLocalMeta
      -- Filter the objects and get local objects that are not on S3
      print "Checking which files should be uploaded"
      let objToUpload = filter (`notElem` bkrS3Meta) bkrLocalMeta
      --print $ show objToUpload
+     -- Create a list with a triple (bkrObj, no of bkrObj, nth bkrObj) to use as a counter
+     let len = length objToUpload
+     let counterList = zip3 objToUpload [len | x <- [1..]] [1..] -- We can use non ending lists since zip ends when the shortest (objToUpload) list ends. Got to love this lazy stuff.
      
-     print $ show $ length objToUpload ++ " files will be uploaded"
+     print $ (show len) ++ " files will be uploaded"
      -- For each element in objToUpload upload the local file then create a .bkrm file and upload it
-     mapM putFiles objToUpload
+     --mapM putFiles objToUpload
+     mapM putFiles counterList
      print "done"  
 
-putFiles :: BkrMeta -> IO ()
-putFiles bkrObj = do
+putFiles :: (BkrMeta, Int, Int) -> IO ()
+--putFiles bkrObj = do
+putFiles (bkrObj, len, nthObj) = do
      
      let localPath = fullPath bkrObj
-     print $ "Uploading: " ++ localPath
+     print $ "Uploading " ++ (show nthObj) ++ "/" ++ (show len) ++ ": " ++ localPath
      -- Put local file
-     S3B.putFile localPath
+     S3B.putBackupFile localPath
      -- Get .bkrm file
      tmpFilePath <- writeBkrMetaFile (localPath, checksum bkrObj)
-     S3B.putFile' tmpFilePath
+     S3B.putBkrMetaFile tmpFilePath
      removeFile tmpFilePath
      return ()
