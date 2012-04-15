@@ -1,1 +1,2 @@
--Activate providing MD5 digest on putFile for upload verification
+- Activate providing MD5 digest on putFile for upload verification
+- ReducedRedundancy should be configurable in the bkr.conf file
