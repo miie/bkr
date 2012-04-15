@@ -1,0 +1,4 @@
+awsaccesskeyid: <your access key id>
+awssecretaccesskey: <your secret access key>
+s3bucketname: <bucket name>
+folderstobackup: /Users/yourusername/foldertobackup
