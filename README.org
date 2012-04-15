@@ -6,7 +6,7 @@ bkr is right now a personal test project creating a basic and easy to use backup
 
 ** What does bkr do?
 
-bkr only supports S3 as backend at this time. You need to have an AWS account and a S3 bucket for your backups. Set your AWS account credentials and the folder to backup in the bkr.conf file (the bkr.conf file must be in the same folder as the bkr executable). bkr pushes the wanted files to the bucket. Next time bkr is run it check check which files has not been backed up or has changed since the last backup and pushes only these files. 
+bkr only supports S3 as backend at this time. You need to have an AWS account and a S3 bucket for your backups. Set your AWS account credentials and the folder to backup in the bkr.conf file (the bkr.conf file must be in the same folder as the bkr executable). bkr pushes the wanted files to the bucket. Next time bkr runs it checks which files has not been backed up or has changed since the last backup and pushes only these files. 
 
 * Installation
 
