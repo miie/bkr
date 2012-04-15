@@ -1,2 +1,6 @@
 - Activate providing MD5 digest on putFile for upload verification
 - ReducedRedundancy should be configurable in the bkr.conf file
+- files not to backup in conf
+- file types no to back in conf
+- folders not to back in conf
+- multiple folders to back
