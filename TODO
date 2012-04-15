@@ -4,3 +4,5 @@
 - file types no to back in conf
 - folders not to back in conf
 - multiple folders to back
+- cabal file + project dir structure
+- use BkrMetaCheck from object name from getBucket for more optimized checking which files should be uploaded
