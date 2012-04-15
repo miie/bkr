@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module BkrS3Bucket ( getBkrObjects
-                   , putFile
-                   , putFile'
+                   , putBackupFile
+                   , putBkrMetaFile
                    ) where
 
 import qualified Aws
@@ -31,20 +31,64 @@ import Network.HTTP.Conduit
 --import qualified Data.ByteString.Lazy.UTF8 as B
 --import System.IO
 import qualified Data.ByteString as B
+import qualified Data.ByteString.UTF8 as BUTF8
 import qualified Data.ByteString.Lazy as LB
 import System.FilePath.Posix (takeFileName)
 
-getBkrObjects :: IO [BkrMeta]
-getBkrObjects = do
-     
+getBkrObjectKeys :: T.Text -> [T.Text] -> IO [T.Text]
+getBkrObjectKeys gbMarker objList = do
+
      -- Get AWS credentials
-     let cfg = getS3Config
+     cfg <- getS3Config
      
      -- Create an IORef to store the response Metadata (so it is also available in case of an error).
      metadataRef <- newIORef mempty
      
      -- Get bucket info with simpleAwsRef. S3.getBucket returns a GetBucketResponse object.
-     s3BkrBucket <- Aws.simpleAwsRef cfg metadataRef $ S3.getBucket getS3BucketName
+     bucketName <- getS3BucketName
+     --s3BkrBucket <- Aws.simpleAwsRef cfg metadataRef $ S3.GetBucket bucketName Nothing (Just gbMarker) Nothing (Just $ T.pack "bkrm")
+     s3BkrBucket <- Aws.simpleAwsRef cfg metadataRef S3.GetBucket { S3.gbBucket    = bucketName
+                                                                  , S3.gbDelimiter = Nothing
+                                                                  , S3.gbMarker    = Just gbMarker
+                                                                  , S3.gbMaxKeys   = Nothing
+                                                                  , S3.gbPrefix    = Just $ T.pack "bkrm"
+                                                                  }
+     
+     -- Print the response metadata.
+     --print =<< readIORef metadataRef
+
+     -- Get bucket contents with gbrContents. gbrContents gets [ObjectInfo]
+     let bkrBucketContents = S3.gbrContents s3BkrBucket
+     print $ show $ length bkrBucketContents
+     --print $ show contents
+     
+     -- Get object keys (the bkr object filenames)
+     let objects = map S3.objectKey bkrBucketContents
+     -- S3 is limited to fetch 1000 objects so make sure 
+     if (length objects) > 999
+        then getBkrObjectKeys (last objects) (objList ++ objects)
+        else return $ objList ++ objects
+
+getBkrObjects :: IO [BkrMeta]
+getBkrObjects = do
+          
+     objectKeys <- getBkrObjectKeys (T.pack "") []
+     bkrObjects <- getBkrObject objectKeys
+     return bkrObjects
+
+{-| Deprecated -}
+getBkrObjectsOld :: IO [BkrMeta]
+getBkrObjectsOld = do
+
+     -- Get AWS credentials
+     cfg <- getS3Config
+     
+     -- Create an IORef to store the response Metadata (so it is also available in case of an error).
+     metadataRef <- newIORef mempty
+     
+     -- Get bucket info with simpleAwsRef. S3.getBucket returns a GetBucketResponse object.
+     bucketName <- getS3BucketName
+     s3BkrBucket <- Aws.simpleAwsRef cfg metadataRef $ S3.getBucket bucketName
      --print $ show bucket
      --print $ show $ S3.gbrContents bucket
      
@@ -53,6 +97,7 @@ getBkrObjects = do
 
      -- Get bucket contents with gbrContents. gbrContents gets [ObjectInfo]
      let bkrBucketContents = S3.gbrContents s3BkrBucket
+     print $ show $ length bkrBucketContents
      --print $ show contents
      --print $ show $ S3.objectKey $ contents !! 0
      
@@ -67,11 +112,12 @@ getBkrObjects = do
      let bkrObjectFiles = filter (\x -> hasBkrExtension x) objectKeys
      --print "bkrObjectFiles: "
      --print bkrObjectFiles
+     --print $ show $ length bkrObjectFiles
      
-     bkrObjects <- getBkrObject bkrObjectFiles
+     bkrObjects <- getBkrObject objectKeys
      return bkrObjects
 
-{-| Filter function for filtering .bkrm objects (files). |-}
+{-| Deprecated. Filter function for filtering .bkrm objects (files). |-}
 hasBkrExtension :: T.Text -> Bool
 hasBkrExtension t = do
      if (Prelude.last $ T.split (=='.') t) == "bkrm"
@@ -87,7 +133,7 @@ getBkrObject :: [T.Text] -> IO [BkrMeta]
 getBkrObject objNames = do
 
      -- Get S3 config
-     let cfg = getS3Config
+     cfg <- getS3Config
 
      -- Create an IORef to store the response Metadata (so it is also available in case of an error).
      metadataRef <- newIORef mempty
@@ -95,14 +141,13 @@ getBkrObject objNames = do
      -- Get tmp dir
      tmpDir <- getTemporaryDirectory
 
-     objects <- forM objNames $ \fileName -> do
-        -- Get tmp file path and handle
-        (tmpPath, hndl) <- openBinaryTempFileWithDefaultPermissions tmpDir "tmp.bkrm"
+     objects <- forM objNames $ \fileName -> do   
         -- Get knob object and knob handle (knob is a in-memory virtual file) 
         knob <- K.newKnob (pack [])
         knobHndl <- K.newFileHandle knob "test.txt" WriteMode
         -- Get the object (.bkrm sfile)
-        Aws.simpleAwsRef cfg metadataRef $ S3.getObject getS3BucketName fileName (saveObject $ return knobHndl)
+        bucketName <- getS3BucketName
+        Aws.simpleAwsRef cfg metadataRef $ S3.getObject bucketName fileName (saveObject $ return knobHndl)
         -- Get data (text) from the knob virtual file        
         knobDataContents <- K.getContents knob
         -- Close knob
@@ -120,7 +165,7 @@ getBkrObject' :: [T.Text] -> IO [BkrMeta]
 getBkrObject' fileNames = do
 
      -- Get S3 config
-     let cfg = getS3Config
+     cfg <- getS3Config
 
      -- Create an IORef to store the response Metadata (so it is also available in case of an error).
      metadataRef <- newIORef mempty
@@ -132,7 +177,8 @@ getBkrObject' fileNames = do
         -- Get tmp file path and handle
         (tmpPath, hndl) <- openBinaryTempFileWithDefaultPermissions tmpDir "tmp.bkrm"
         -- Get the object (.bkrm sfile)
-        Aws.simpleAwsRef cfg metadataRef $ S3.getObject getS3BucketName fileName (saveObject $ return hndl)
+        bucketName <- getS3BucketName
+        Aws.simpleAwsRef cfg metadataRef $ S3.getObject bucketName fileName (saveObject $ return hndl)
         -- Get a new handle to the tmp file, read it and get the path and checksum
         hndl <- openBinaryFile tmpPath ReadMode
         -- Get the conf pair from the tmp file and get path and checksum from the pair
@@ -148,45 +194,55 @@ getBkrObject' fileNames = do
 
 --getObject hndl status headers source = source $$ sourceIOHandle hndl
 
---putFile :: FilePath -> IO [BkrMeta]
-putFile path = do
-
-     -- Get S3 config
-     let cfg = getS3Config
-
-     -- Create an IORef to store the response Metadata (so it is also available in case of an error).
-     metadataRef <- newIORef mempty
-     
-     --hndl <- openBinaryFile path ReadMode
-     --fileContents <- LB.hGetContents hndl
+putBackupFile :: FilePath -> IO ()
+putBackupFile path = do
+        
      let uploadName = T.pack $ (show $ getHashForString path) ++ "::" ++ takeFileName path
-     fileContents <- B.readFile path
-     -- TODO: change to read the file lazy and upload using RequestBodyLBS
-     --Aws.simpleAwsRef cfg metadataRef $ S3.putObject uploadName getS3BucketName (RequestBodyLBS $ fileContents)
-     Aws.simpleAwsRef cfg metadataRef $ S3.putObject uploadName getS3BucketName (RequestBodyBS fileContents)
+     -- Get MD5 hash for file
+     --contentMD5 <- getFileHash path
+     --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
+     putFile path uploadName Nothing
 
-     --hClose hndl
+putBkrMetaFile :: FilePath -> IO ()
+putBkrMetaFile path = do
+
+     let uploadName = T.pack $ "bkrm." ++ (takeFileName path)
+     -- Get MD5 hash for file
+     --contentMD5 <- getFileHash path
+     --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
+     putFile path uploadName Nothing
+
+putFile :: FilePath -> T.Text -> Maybe B.ByteString -> IO ()
+putFile path uploadName contentMD5 = do
      
-     -- Print the response metadata.
-     --print =<< readIORef metadataRef
-     --print "done"
-     return ()
-
-putFile' path = do
-
      -- Get S3 config
-     let cfg = getS3Config
+     cfg <- getS3Config
 
      -- Create an IORef to store the response Metadata (so it is also available in case of an error).
      metadataRef <- newIORef mempty
      
      --hndl <- openBinaryFile path ReadMode
      --fileContents <- LB.hGetContents hndl
-     let uploadName = T.pack $ takeFileName path
      fileContents <- B.readFile path
      -- TODO: change to read the file lazy and upload using RequestBodyLBS
      --Aws.simpleAwsRef cfg metadataRef $ S3.putObject uploadName getS3BucketName (RequestBodyLBS $ fileContents)
-     Aws.simpleAwsRef cfg metadataRef $ S3.putObject uploadName getS3BucketName (RequestBodyBS fileContents)
+     bucketName <- getS3BucketName
+     --Aws.simpleAwsRef cfg metadataRef $ S3.putObject uploadName bucketName (RequestBodyBS fileContents)
+     -- Use reduced redudancy TODO: make this a config setting!
+     --Aws.simpleAwsRef cfg metadataRef $ (S3.PutObject uploadName bucketName Nothing Nothing Nothing Nothing Nothing Nothing Nothing (Just S3.ReducedRedundancy) (RequestBodyBS fileContents) [])
+     Aws.simpleAwsRef cfg metadataRef S3.PutObject { S3.poObjectName          = uploadName
+                                                   , S3.poBucket              = bucketName
+                                                   , S3.poContentType         = Nothing
+                                                   , S3.poCacheControl        = Nothing
+                                                   , S3.poContentDisposition  = Nothing
+                                                   , S3.poContentEncoding     = Nothing
+                                                   , S3.poContentMD5          = contentMD5
+                                                   , S3.poExpires             = Nothing
+                                                   , S3.poAcl                 = Nothing
+                                                   , S3.poStorageClass        = Just S3.ReducedRedundancy
+                                                   , S3.poRequestBody         = RequestBodyBS fileContents 
+                                                   , S3.poMetadata            = []
+                                                   }
 
      --hClose hndl
      
@@ -194,3 +250,5 @@ putFile' path = do
      --print =<< readIORef metadataRef
      --print "done"
      return ()
+
+
