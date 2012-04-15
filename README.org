@@ -1,0 +1,25 @@
+#+TITLE: bkr - simple backups
+
+* Introduction
+
+bkr is right now a personal test project creating a basic and easy to use backup utility using cloud services as backup storage.
+
+** What does bkr do?
+
+bkr only supports S3 as backend at this time. You need to have an AWS account and a S3 bucket for your backups. Set your AWS account credentials and the folder to backup in the bkr.conf file (the bkr.conf file must be in the same folder as the bkr executable). bkr pushes the wanted files to the bucket. Next time bkr is run it check check which files has not been backed up or has changed since the last backup and pushes only these files. 
+
+* Installation
+
+to be added...
+
+* Set up
+
+All configuration is made in the bkr.conf file. See bkr.conf.example (edit and rename to bkr.conf).
+
+* Release Notes
+
+** 0.1.0
+
+This is a proof-of-concept release. Only the most basic functionality is implemented, very little documentation is done, there is no error handling, no logging, no optimization what so ever, only one folder can be backed up, among other.
+
+However, the basic backup functionality is there and I personally use it for all my backups.
