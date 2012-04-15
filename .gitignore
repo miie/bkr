@@ -2,3 +2,8 @@
 *.hi
 .DS_Store
 *~
+bkr.conf
+
+bkrtst0
+
+bkrtst0.hs
