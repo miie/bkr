@@ -25,9 +25,10 @@ main = do
      --debugF $ show bkrS3Meta
      -- Get local BkrMeta objects
      logNotice "Getting local files"
-     confPairs <- getConfPairsFromFileS' "bkr.conf"
-     --bkrLocalMeta <- F.getBkrObjects "/Users/michaelsmietana/Pictures/Annat"
-     bkrLocalMeta <- mapM F.getBkrObjects (split "," (fromJust $ getValueS "folderstobackup" confPairs)) -- -> move the getting folders to backup to BkrConfig + remove spaces before and after and normalize
+     --confPairs <- getConfPairsFromFileS' "bkr.conf"
+     --bkrLocalMeta <- mapM F.getBkrObjects (split "," (fromJust $ getValueS "folderstobackup" confPairs)) -- -> move the getting folders to backup to BkrConfig + remove spaces before and after and normalize
+     backupFolders <- getBackupFolders
+     bkrLocalMeta <- mapM F.getBkrObjects backupFolders
      
      -- Filter the objects and get local objects that are not on S3
      logNotice "Checking which files should be uploaded"

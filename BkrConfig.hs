@@ -10,6 +10,7 @@ module BkrConfig ( getConfPairsFromFile
                  , writeBkrMetaFile
                  , getValue
                  , getValueS
+                 , getBackupFolders
                  ) where
 
 import qualified Data.Text as T
@@ -25,6 +26,9 @@ import Control.Monad (mapM)
 
 import List (find)
 
+import Data.String.Utils (split, strip)
+import Data.Maybe (fromJust)
+
 {-| TODO: add better description!
 Gets configuration pairs. This function takes a FilePath and reads the file lazy which might lead to unexpected consequences. If you want to have more control over the file handle use getConfPairsFromFile_ and if you want the file to be read strictly without the unwanted (or wanted) lazines side effects use getConfPairsFromFileS. 
 |-}
@@ -35,7 +39,9 @@ getConfPairsFromFile path = do
      hndl <- openBinaryFile path ReadMode
      readF <- hGetContents hndl
      --print $ "readF: " ++ (show readF)
-     let fileLines = map T.pack (lines readF)
+     --let fileLines = map T.pack (lines readF)
+     -- Get lines and filter lines beginning with #
+     let fileLines = [ x | x <- (map T.pack (lines readF)), (T.head $ T.stripStart x) /= '#' ]
      --hClose hndl
      return $ map getConfPair fileLines
 
@@ -53,7 +59,9 @@ getConfPairsFromFile_ hndl = do
      -- Read the config file, split into lines and pack as Text
      readF <- hGetContents hndl
      --print $ "readF: " ++ (show readF)
-     let fileLines = map T.pack (lines readF)
+     --let fileLines = map T.pack (lines readF)
+     -- Get lines and filter lines beginning with #
+     let fileLines = [ x | x <- (map T.pack (lines readF)), (T.head $ T.stripStart x) /= '#' ]
      return $ map getConfPair fileLines
 
 {-| Like getConfPairsFromFile' but takes a file handle instead of FilePath. |-}
@@ -72,7 +80,9 @@ getConfPairsFromFileS path = do
      -- Read contents strictly
      readF <- S.hGetContents hndl
      hClose hndl
-     let fileLines = map T.pack (lines readF)
+     --let fileLines = map T.pack (lines readF)
+     -- Get lines and filter lines beginning with #
+     let fileLines = [ x | x <- (map T.pack (lines readF)), (T.head $ T.stripStart x) /= '#' ]
      return $ map getConfPair fileLines
 
 {-| Like getConfPairsFromFile' but reads file contents strictly. |-}
@@ -86,7 +96,9 @@ getConfPairsFromFileS' path = do
 getConfPairsFromByteString :: BS.ByteString -> IO [(T.Text, T.Text)]
 getConfPairsFromByteString bS = do
      
-     let fileLines = map T.pack (lines $ BS.unpack bS)     
+     --let fileLines = map T.pack (lines $ BS.unpack bS)
+     -- Get lines and filter lines beginning with #
+     let fileLines = [ x | x <- (map T.pack (lines $ BS.unpack bS)), (T.head $ T.stripStart x) /= '#' ]
      return $ map getConfPair fileLines
 
 {-| Like getConfPairsFromByteString but returns String. |-}
@@ -117,6 +129,8 @@ getValueS :: String -> [(String, String)] -> Maybe String
 --getValueS value values = lookup value values
 getValueS = lookup
 
+-- Bkr specific fuctions
+
 {-| Take a bkr conf pair and write a .bkrm file in a temporary directory. |-}
 writeBkrMetaFile :: (String, String) -> IO FilePath
 writeBkrMetaFile confPair = do
@@ -137,4 +151,9 @@ writeBkrMetaFile confPair = do
      -- Close the handle and return the file path
      hClose hndl
      return fullPath
+
+getBackupFolders :: IO [FilePath]
+getBackupFolders = do
+     confPairs <- getConfPairsFromFileS' "bkr.conf"
+     return $ map strip (split "," (fromJust $ getValueS "folderstobackup" confPairs))
      
