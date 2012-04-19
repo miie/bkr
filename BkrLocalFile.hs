@@ -8,7 +8,7 @@ module BkrLocalFile ( getBkrObjects
 
 import Control.Monad (forM, mapM)
 import System.Directory (doesDirectoryExist, getDirectoryContents, doesFileExist)
-import System.FilePath ((</>))
+import System.FilePath ((</>), normalise)
 import Prelude hiding (catch)
 import Control.Exception
 
@@ -27,7 +27,7 @@ getAllFiles topPath = do
     isDirectory <- doesDirectoryExist path
     if isDirectory
       then getAllFiles path
-      else return [path]
+      else return [normalise path]
   return (concat paths)
 
 handleIO :: IOException -> FilePath -> IO [FilePath]
@@ -38,20 +38,16 @@ handleIO ex path = do
             then return [path]
             else return []
 
-{- Moved to Hasher
-getFileHash :: FilePath -> IO MD5Digest
-getFileHash path = L.readFile path >>= return . md5
--}
-
 getBkrMeta :: FilePath -> IO BkrMeta
 getBkrMeta path = do
            fileHash <- getFileHash path
            --print "Got hash"
            -- An ugly workaround for and laziness IO problem where file handles to the files to be hashed are opened by the hashing readFile function but never closed since due to laziness the files are never read and therefore does not read EOF. Printing the hash creates IO and therefore forces evaluation. This must be fixed!  
-           print $ "Hash for file: " ++ (show path) ++ ": " ++ (show fileHash)
-           return $ BkrMeta path (show fileHash)
+           --print $ "Hash for file: " ++ (show path) ++ ": " ++ (show fileHash)
+           --return $ BkrMeta path (show fileHash)
+           return $ BkrMeta path (show fileHash) (show $ getHashForString path)
 
 getBkrObjects :: FilePath -> IO [BkrMeta]
 getBkrObjects path = do
-    allFiles <- getAllFiles path
-    mapM getBkrMeta allFiles
+     allFiles <- getAllFiles path
+     mapM getBkrMeta allFiles
