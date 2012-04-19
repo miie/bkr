@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
 module BkrS3Bucket ( getBkrObjects
                    , putBackupFile
@@ -26,14 +26,19 @@ import BkrAwsConfig
 import BkrConfig
 import BkrFundare
 import Hasher
+import BkrLogging
 
 import Network.HTTP.Conduit
 --import qualified Data.ByteString.Lazy.UTF8 as B
---import System.IO
 import qualified Data.ByteString as B
 import qualified Data.ByteString.UTF8 as BUTF8
 import qualified Data.ByteString.Lazy as LB
 import System.FilePath.Posix (takeFileName)
+
+import Prelude hiding (catch)
+import qualified Control.Exception as C
+import Control.Concurrent (threadDelay)
+import System.IO.Error (ioError, userError)
 
 getBkrObjectKeys :: T.Text -> [T.Text] -> IO [T.Text]
 getBkrObjectKeys gbMarker objList = do
@@ -59,11 +64,12 @@ getBkrObjectKeys gbMarker objList = do
 
      -- Get bucket contents with gbrContents. gbrContents gets [ObjectInfo]
      let bkrBucketContents = S3.gbrContents s3BkrBucket
-     print $ show $ length bkrBucketContents
+     --print $ show $ length bkrBucketContents
      --print $ show contents
      
      -- Get object keys (the bkr object filenames)
      let objects = map S3.objectKey bkrBucketContents
+     --print $ show $ head objects
      -- S3 is limited to fetch 1000 objects so make sure 
      if (length objects) > 999
         then getBkrObjectKeys (last objects) (objList ++ objects)
@@ -73,8 +79,20 @@ getBkrObjects :: IO [BkrMeta]
 getBkrObjects = do
           
      objectKeys <- getBkrObjectKeys (T.pack "") []
-     bkrObjects <- getBkrObject objectKeys
-     return bkrObjects
+     logNotice $ "Got " ++ (show $ length objectKeys) ++ " objects from S3"
+     --bkrObjects <- getBkrObject objectKeys
+     --return bkrObjects
+     return $ map getMetaKeys objectKeys
+
+splitObject :: String -> [T.Text]
+splitObject s = T.split (=='.') (T.pack s)
+
+getMetaKeys key = BkrMeta { fullPath = "" 
+                          , pathChecksum = T.unpack $ kSplit !! 1
+                          , fileChecksum = T.unpack $ kSplit !! 2
+                          }
+                  where kSplit = T.split (=='.') key
+                               
 
 {-| Deprecated -}
 getBkrObjectsOld :: IO [BkrMeta]
@@ -97,7 +115,7 @@ getBkrObjectsOld = do
 
      -- Get bucket contents with gbrContents. gbrContents gets [ObjectInfo]
      let bkrBucketContents = S3.gbrContents s3BkrBucket
-     print $ show $ length bkrBucketContents
+     --print $ show $ length bkrBucketContents
      --print $ show contents
      --print $ show $ S3.objectKey $ contents !! 0
      
@@ -157,7 +175,7 @@ getBkrObject objNames = do
         let path = fromJust $ lookup "fullpath" pairS
         let checksum = fromJust $ lookup "checksum" pairS
 
-        return [BkrMeta path checksum]
+        return [BkrMeta path checksum (show $ getHashForString path)]
      return (concat objects)
 
 {-| Like getBkrObject but uses a temporary file instead of a virtual file when fetching and reading the bkr object files. |-}
@@ -189,10 +207,8 @@ getBkrObject' fileNames = do
         hClose hndl
         removeFile tmpPath
 
-        return [BkrMeta path checksum]
+        return [BkrMeta path checksum (show $ getHashForString path)]
      return (concat objects)
-
---getObject hndl status headers source = source $$ sourceIOHandle hndl
 
 putBackupFile :: FilePath -> IO ()
 putBackupFile path = do
@@ -201,7 +217,7 @@ putBackupFile path = do
      -- Get MD5 hash for file
      --contentMD5 <- getFileHash path
      --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
-     putFile path uploadName Nothing
+     putFile path uploadName Nothing 0
 
 putBkrMetaFile :: FilePath -> IO ()
 putBkrMetaFile path = do
@@ -210,10 +226,23 @@ putBkrMetaFile path = do
      -- Get MD5 hash for file
      --contentMD5 <- getFileHash path
      --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
-     putFile path uploadName Nothing
+     putFile path uploadName Nothing 0
 
-putFile :: FilePath -> T.Text -> Maybe B.ByteString -> IO ()
-putFile path uploadName contentMD5 = do
+{-| Upload file to S3. putFile will handle a failed attempt to upload the file by waiting 60 seconds and then retrying. If this fails five times it will raise an IO Error.
+|-}
+putFile :: FilePath -> T.Text -> Maybe B.ByteString -> Int -> IO ()
+putFile path uploadName contentMD5 noOfRetries = do
+     putFile' path uploadName contentMD5 `C.catch` \ (ex :: C.SomeException) -> do
+              if noOfRetries > 5
+                 then ioError $ userError $ "Failed to upload file " ++ path
+                 else do
+                      logCritical $ "putFile: got exception: " ++ (show ex)
+                      logCritical "Wait 60 sec then try again"
+                      threadDelay $ 60 * 1000000
+                      putFile path uploadName contentMD5 (noOfRetries + 1)
+
+putFile' :: FilePath -> T.Text -> Maybe B.ByteString -> IO ()
+putFile' path uploadName contentMD5 = do
      
      -- Get S3 config
      cfg <- getS3Config
@@ -227,10 +256,10 @@ putFile path uploadName contentMD5 = do
      -- TODO: change to read the file lazy and upload using RequestBodyLBS
      --Aws.simpleAwsRef cfg metadataRef $ S3.putObject uploadName getS3BucketName (RequestBodyLBS $ fileContents)
      bucketName <- getS3BucketName
-     --Aws.simpleAwsRef cfg metadataRef $ S3.putObject uploadName bucketName (RequestBodyBS fileContents)
+     -- Replace space with underscore in the upload name (S3 does not handle blanks in object names). Does not mater since the whole original path is stored in the meta file.
      -- Use reduced redudancy TODO: make this a config setting!
-     --Aws.simpleAwsRef cfg metadataRef $ (S3.PutObject uploadName bucketName Nothing Nothing Nothing Nothing Nothing Nothing Nothing (Just S3.ReducedRedundancy) (RequestBodyBS fileContents) [])
-     Aws.simpleAwsRef cfg metadataRef S3.PutObject { S3.poObjectName          = uploadName
+     logDebug ("putFile: will upload file " ++ path)
+     Aws.simpleAwsRef cfg metadataRef S3.PutObject { S3.poObjectName          = T.replace " " "_" uploadName 
                                                    , S3.poBucket              = bucketName
                                                    , S3.poContentType         = Nothing
                                                    , S3.poCacheControl        = Nothing
@@ -243,12 +272,12 @@ putFile path uploadName contentMD5 = do
                                                    , S3.poRequestBody         = RequestBodyBS fileContents 
                                                    , S3.poMetadata            = []
                                                    }
+     logDebug "putFile: upload done"
 
      --hClose hndl
      
      -- Print the response metadata.
      --print =<< readIORef metadataRef
      --print "done"
-     return ()
-
+     --return ()
 
