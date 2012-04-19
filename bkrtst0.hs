@@ -39,6 +39,7 @@ main = do
      --pairsS <- getConfPairsFromFile' "tst.bkrm"
      --print $ show $ fromJust $ lookup "fullpath" pairsS
      
+     {-
      bkrObjects <- getBkrObjects
      print $ show bkrObjects
 
@@ -52,3 +53,7 @@ main = do
      print $ show localBkrObjects
 
      putFile "/Users/michaelsmietana/Pictures/bkrtst/_DSC2285.NEF"
+     -}
+     allF <- F.getAllFiles "/Users/michaelsmietana/Pictures/Stig"
+     print $ show $ getFileHash' allF
+     print "done"
