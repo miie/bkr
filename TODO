@@ -1,5 +1,5 @@
 - Activate providing MD5 digest on putFile for upload verification
-- ReducedRedundancy should be configurable in the bkr.conf file
+Done - ReducedRedundancy should be configurable in the bkr.conf file
 Done - files not to backup in conf
 Done - file types no to back in conf
 Done - folders not to back in conf
@@ -7,3 +7,4 @@ Done - multiple folders to back
 - cabal file + project dir structure
 Done - use BkrMetaCheck from object name from getBucket for more optimized check which files should be uploaded
 - cache local checksums for BkrMeta for a more optimized check which files should be uploaded
+- add "sync mode" - synchronize the online content with local, removing items online that does not exist locally any more
