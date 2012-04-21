@@ -14,6 +14,7 @@ module BkrConfig ( getConfPairsFromFile
                  , getFilesToIgnore
                  , getFileExtensionsToIgnore
                  , getFoldersToIgnore
+                 , getUseS3ReducedRedundancy
                  ) where
 
 import qualified Data.Text as T
@@ -33,6 +34,7 @@ import Data.String.Utils (split, strip)
 import Data.Maybe (fromJust)
 import System.IO.Error (ioError, userError)
 import BkrLogging
+import Aws.S3.Model (StorageClass(..))
 
 {-| TODO: add better description!
 Gets configuration pairs. This function takes a FilePath and reads the file lazy which might lead to unexpected consequences. If you want to have more control over the file handle use getConfPairsFromFile_ and if you want the file to be read strictly without the unwanted (or wanted) lazines side effects use getConfPairsFromFileS. 
@@ -200,4 +202,16 @@ getFoldersToIgnore = do
          Nothing -> do
                  logDebug $ "getFoldersToIgnore: " ++ "the setting folderstoignore was not found."
                  return []
-     
+
+{-| Get if we should use S3 reduced redundancy, if the setting cannot be found return reduced redundacy (there is not real reason not to use reduced redundancy for this kind of application.
+|-} 
+getUseS3ReducedRedundancy :: IO (Maybe StorageClass)
+getUseS3ReducedRedundancy = do
+     confSetting <- getConfSetting "uses3reducedredundancy"
+     case confSetting of
+          Just x -> if x == "yes"
+                       then return $ Just ReducedRedundancy
+                       else return $ Just Standard
+          Nothing -> do
+                  logDebug $ "getUseS3ReducedRedundancy: " ++ "the setting uses3reducedredundancy was not found."
+                  return $ Just ReducedRedundancy

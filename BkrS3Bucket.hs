@@ -257,7 +257,9 @@ putFile' path uploadName contentMD5 = do
      --Aws.simpleAwsRef cfg metadataRef $ S3.putObject uploadName getS3BucketName (RequestBodyLBS $ fileContents)
      bucketName <- getS3BucketName
      -- Replace space with underscore in the upload name (S3 does not handle blanks in object names). Does not mater since the whole original path is stored in the meta file.
-     -- Use reduced redudancy TODO: make this a config setting!
+     -- Check if we should use reduced redundancy
+     useReducedRedundancy <- getUseS3ReducedRedundancy
+
      logDebug ("putFile: will upload file " ++ path)
      Aws.simpleAwsRef cfg metadataRef S3.PutObject { S3.poObjectName          = T.replace " " "_" uploadName 
                                                    , S3.poBucket              = bucketName
@@ -268,7 +270,7 @@ putFile' path uploadName contentMD5 = do
                                                    , S3.poContentMD5          = contentMD5
                                                    , S3.poExpires             = Nothing
                                                    , S3.poAcl                 = Nothing
-                                                   , S3.poStorageClass        = Just S3.ReducedRedundancy
+                                                   , S3.poStorageClass        = useReducedRedundancy
                                                    , S3.poRequestBody         = RequestBodyBS fileContents 
                                                    , S3.poMetadata            = []
                                                    }
