@@ -1,12 +1,13 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module BkrLocalFile ( getBkrObjects   
+module BkrLocalFile ( getBkrObjects
+                    , getAllFolders
                     --, getAllFiles
                     --, getBkrMeta
                     ) where
 
-import Control.Monad (forM, mapM)
+import Control.Monad (forM, mapM, filterM)
 import System.Directory (doesDirectoryExist, getDirectoryContents, doesFileExist)
 import System.FilePath ((</>), normalise, takeExtensions, takeDirectory)
 import Prelude hiding (catch)
@@ -45,6 +46,17 @@ getAllFiles topPath = do
       then getAllFiles path
       else return [normalise path]
   return $ concat paths
+
+getAllFolders :: FilePath -> IO [FilePath]
+getAllFolders topPath = do
+  names <- getDirectoryContents topPath `catch` \ (ex :: IOException) -> handleIO ex topPath
+  -- Map files with topPath to get full path and filter on folders to ignore
+  foldersToIgnore <- getFoldersToIgnore
+  let paths = (filterFolder foldersToIgnore) $ map (topPath </>) (filterFile ([".", ".."]) names)
+  folders <- filterM doesDirectoryExist paths
+  allFolders <- mapM getAllFolders folders
+  let norm = map normalise
+  return . reverse . norm $ (concat allFolders) ++ folders
 
 getAllFilesOld :: FilePath -> IO [FilePath]
 getAllFilesOld topPath = do
