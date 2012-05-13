@@ -1,21 +1,29 @@
 
 module BkrFundare ( BkrMeta(..)
-                    --,
+                  , getBkrMeta
                   ) where
 
-{-
-data BkrMeta = BkrMeta          { fullPath :: FilePath
-                                , checksum :: String
-                                }         
-             | BkrMetaCheck     { pathChecksum :: String
-                                , fileChecksum :: String
-                                } deriving (Show, Eq)
--}
+import System.Directory (getModificationTime)
+import Hasher
 
 data BkrMeta = BkrMeta { fullPath :: FilePath
                        , fileChecksum :: String
                        , pathChecksum :: String
-                       } deriving (Show)
+                       , modificationTime :: String
+                       , modificationTimeChecksum :: String
+                       } deriving Show
 
+{-|
+True for:
+fileChecksum && pathChecksum
+or
+pathChecksum && modificationTimeChecksum
+|-}
 instance Eq BkrMeta where
-     meta1 == meta2 = fileChecksum meta1 == fileChecksum meta2 && pathChecksum meta1 == pathChecksum meta2
+     meta1 == meta2 = (fileChecksum meta1 == fileChecksum meta2 && pathChecksum meta1 == pathChecksum meta2) || (pathChecksum meta1 == pathChecksum meta2 && modificationTimeChecksum meta1 == modificationTimeChecksum meta2)
+
+getBkrMeta :: FilePath -> IO BkrMeta
+getBkrMeta path = do
+     fileHash <- getFileHash path
+     modTime <- getModificationTime path
+     return $ BkrMeta path (show fileHash) (show $ getHashForString path) (show modTime) (show $ getHashForString $ show modTime)

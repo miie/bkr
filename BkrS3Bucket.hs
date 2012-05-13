@@ -9,7 +9,7 @@ import qualified Aws
 import qualified Aws.S3 as S3
 import Data.Conduit (($$))
 import Data.Conduit.Binary (sinkIOHandle, sourceIOHandle)
-import Data.IORef (newIORef)
+import Data.IORef (newIORef, readIORef)
 import Data.Monoid (mempty)
 
 import Maybe (fromJust)
@@ -61,6 +61,9 @@ getBkrObjectKeys gbMarker objList = do
      
      -- Print the response metadata.
      --print =<< readIORef metadataRef
+     -- Log the response metadata.
+     ioResponseMetaData <- readIORef metadataRef
+     logDebug $ "getBkrObjectKeys: response metadata: " ++ (show ioResponseMetaData)
 
      -- Get bucket contents with gbrContents. gbrContents gets [ObjectInfo]
      let bkrBucketContents = S3.gbrContents s3BkrBucket
@@ -87,11 +90,13 @@ getBkrObjects = do
 splitObject :: String -> [T.Text]
 splitObject s = T.split (=='.') (T.pack s)
 
-getMetaKeys key = BkrMeta { fullPath = "" 
-                          , pathChecksum = T.unpack $ kSplit !! 1
-                          , fileChecksum = T.unpack $ kSplit !! 2
+getMetaKeys key = BkrMeta { fullPath                 = "" 
+                          , pathChecksum             = T.unpack $ kSplit !! 1
+                          , fileChecksum             = T.unpack $ kSplit !! 2
+                          , modificationTime         = ""
+                          , modificationTimeChecksum = ""
                           }
-                  where kSplit = T.split (=='.') key
+                          where kSplit = T.split (=='.') key
                                
 
 {-| Deprecated -}
@@ -172,10 +177,12 @@ getBkrObject objNames = do
         hClose knobHndl
         -- Get the config pair and get path and checksum from the pair
         pairS <- getConfPairsFromByteString' knobDataContents
-        let path = fromJust $ lookup "fullpath" pairS
-        let checksum = fromJust $ lookup "checksum" pairS
+        let path                     = fromJust $ lookup "fullpath" pairS
+        let checksum                 = fromJust $ lookup "checksum" pairS
+        let modificationTime         = fromJust $ lookup "modificationtime" pairS
+        let modificationTimeChecksum = fromJust $ lookup "modificationtimechecksum" pairS
 
-        return [BkrMeta path checksum (show $ getHashForString path)]
+        return [BkrMeta path checksum (show $ getHashForString path) modificationTime modificationTimeChecksum]
      return (concat objects)
 
 {-| Like getBkrObject but uses a temporary file instead of a virtual file when fetching and reading the bkr object files. |-}
@@ -201,13 +208,15 @@ getBkrObject' fileNames = do
         hndl <- openBinaryFile tmpPath ReadMode
         -- Get the conf pair from the tmp file and get path and checksum from the pair
         pairsS <- getConfPairsFromFileS' tmpPath
-        let path = fromJust $ lookup "fullpath" pairsS
-        let checksum = fromJust $ lookup "checksum" pairsS
+        let path                     = fromJust $ lookup "fullpath" pairsS
+        let checksum                 = fromJust $ lookup "checksum" pairsS
+        let modificationTime         = fromJust $ lookup "modificationtime" pairsS
+        let modificationTimeChecksum = fromJust $ lookup "modificationtimechecksum" pairsS
         -- Close the handle and delete the tmp file
         hClose hndl
         removeFile tmpPath
 
-        return [BkrMeta path checksum (show $ getHashForString path)]
+        return [BkrMeta path checksum (show $ getHashForString path) modificationTime modificationTimeChecksum]
      return (concat objects)
 
 putBackupFile :: FilePath -> IO ()
@@ -250,16 +259,19 @@ putFile' path uploadName contentMD5 = do
      -- Create an IORef to store the response Metadata (so it is also available in case of an error).
      metadataRef <- newIORef mempty
      
+     -- TODO: change to read the file lazy and upload using RequestBodyLBS ...or maybe no, we probably don't gain anything from doing this lazy
      --hndl <- openBinaryFile path ReadMode
      --fileContents <- LB.hGetContents hndl
-     fileContents <- B.readFile path
-     -- TODO: change to read the file lazy and upload using RequestBodyLBS
      --Aws.simpleAwsRef cfg metadataRef $ S3.putObject uploadName getS3BucketName (RequestBodyLBS $ fileContents)
+     fileContents <- B.readFile path
+
+     -- Get bucket name
      bucketName <- getS3BucketName
-     -- Replace space with underscore in the upload name (S3 does not handle blanks in object names). Does not mater since the whole original path is stored in the meta file.
+     
      -- Check if we should use reduced redundancy
      useReducedRedundancy <- getUseS3ReducedRedundancy
-
+     
+     -- Replace space with underscore in the upload name (S3 does not handle blanks in object names). Doing this is safe since the whole original path is stored in the meta file.
      logDebug ("putFile: will upload file " ++ path)
      Aws.simpleAwsRef cfg metadataRef S3.PutObject { S3.poObjectName          = T.replace " " "_" uploadName 
                                                    , S3.poBucket              = bucketName
@@ -276,10 +288,12 @@ putFile' path uploadName contentMD5 = do
                                                    }
      logDebug "putFile: upload done"
 
+     -- If lazy upload, close the handle
+     --logDebug "putFile: close file handle"
      --hClose hndl
      
-     -- Print the response metadata.
-     --print =<< readIORef metadataRef
-     --print "done"
-     --return ()
+     -- Log the response metadata.
+     --ioResponseMetaData <- readIORef metadataRef
+     --logDebug $ "putFile: response metadata: " ++ (show ioResponseMetaData)
+     readIORef metadataRef >>= logDebug . ("putFile: response metadata: " ++) . show
 

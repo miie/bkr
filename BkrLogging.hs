@@ -11,8 +11,8 @@ import System.Log.Handler (setFormatter)
 import System.Log.Formatter
 import System.Log.Handler.Growl
 
-setupLogging :: IO ()
-setupLogging = do
+setupLogging :: Priority -> IO ()
+setupLogging logLevel = do
      
      -- File handler
      h <- fileHandler "debug.log" DEBUG >>= \lh -> return $ setFormatter lh (tfLogFormatter "%F %X.%q" "$time|$loggername|$prio: $msg")
@@ -24,7 +24,7 @@ setupLogging = do
      updateGlobalLogger "bkrfile" (addHandler h)
      --updateGlobalLogger "bkrgrowl" (addHandler g)
      
-     updateGlobalLogger "bkrfile" (setLevel DEBUG)
+     updateGlobalLogger "bkrfile" (setLevel logLevel)
      --updateGlobalLogger "bkrgrowl" (setLevel NOTICE)
 
 logDebug :: String -> IO ()

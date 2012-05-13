@@ -1,5 +1,6 @@
 
-module BkrConfig ( getConfPairsFromFile
+module BkrConfig ( FileUpdateCheckType(..)
+                 , getConfPairsFromFile
                  , getConfPairsFromFile'
                  , getConfPairsFromFile_
                  , getConfPairsFromFile_'
@@ -15,6 +16,8 @@ module BkrConfig ( getConfPairsFromFile
                  , getFileExtensionsToIgnore
                  , getFoldersToIgnore
                  , getUseS3ReducedRedundancy
+                 , getLogLevel
+                 , getFileUpdateCheckType
                  ) where
 
 import qualified Data.Text as T
@@ -35,83 +38,86 @@ import Data.Maybe (fromJust)
 import System.IO.Error (ioError, userError)
 import BkrLogging
 import Aws.S3.Model (StorageClass(..))
+import System.Log.Logger (Priority(..))
+
+data FileUpdateCheckType = FUCChecksum
+                         | FUCDate
+                         | FUCSmart
+                         deriving Eq
+
+{-| Read lines from s and filter on empty lines and lines beginning with # |-}
+getFilteredLines :: String -> [T.Text]
+getFilteredLines s = [ x | x <- (map T.pack (lines s)), x /= T.empty, (T.head $ T.stripStart x) /= '#' ]
 
 {-| TODO: add better description!
 Gets configuration pairs. This function takes a FilePath and reads the file lazy which might lead to unexpected consequences. If you want to have more control over the file handle use getConfPairsFromFile_ and if you want the file to be read strictly without the unwanted (or wanted) lazines side effects use getConfPairsFromFileS. 
 |-}
 getConfPairsFromFile :: FilePath -> IO [(T.Text, T.Text)]
 getConfPairsFromFile path = do
-
+     logDebug "getConfPairsFromFile called"
      -- Read the config file, split into lines and pack as Text
      hndl <- openBinaryFile path ReadMode
      readF <- hGetContents hndl
-     --print $ "readF: " ++ (show readF)
-     --let fileLines = map T.pack (lines readF)
-     -- Get lines and filter lines beginning with #
-     let fileLines = [ x | x <- (map T.pack (lines readF)), (T.head $ T.stripStart x) /= '#' ]
-     --hClose hndl
-     return $ map getConfPair fileLines
+     
+     return $ map getConfPair (getFilteredLines readF)
 
 {-| Like getConfPairsFromFile but gets a String pair instead of Text. |-}
 getConfPairsFromFile' :: FilePath -> IO [(String, String)]
 getConfPairsFromFile' path = do
-
+     logDebug "getConfPairsFromFile' called"
+     
      pairs <- getConfPairsFromFile path
      return $ map textToString pairs
 
 {-| Like getConfPairsFromFile but takes a file handle instead of FilePath. |-}
 getConfPairsFromFile_ :: Handle -> IO [(T.Text, T.Text)]
 getConfPairsFromFile_ hndl = do
-
+     logDebug "getConfPairsFromFile_ called"
      -- Read the config file, split into lines and pack as Text
      readF <- hGetContents hndl
-     --print $ "readF: " ++ (show readF)
-     --let fileLines = map T.pack (lines readF)
-     -- Get lines and filter lines beginning with #
-     let fileLines = [ x | x <- (map T.pack (lines readF)), (T.head $ T.stripStart x) /= '#' ]
-     return $ map getConfPair fileLines
+
+     return $ map getConfPair (getFilteredLines readF)
 
 {-| Like getConfPairsFromFile' but takes a file handle instead of FilePath. |-}
 getConfPairsFromFile_' :: Handle -> IO [(String, String)]
 getConfPairsFromFile_' hndl = do
-
+     logDebug "getConfPairsFromFile_' called"
+     
      pairs <- getConfPairsFromFile_ hndl
      return $ map textToString pairs
 
 {-| Like getConfPairsFromFile but reads file contents strictly. |-}
 getConfPairsFromFileS :: FilePath -> IO [(T.Text, T.Text)]
 getConfPairsFromFileS path = do
-
+     logDebug "getConfPairsFromFileS called"
      -- Read the config file, split into lines and pack as Text
      hndl <- openBinaryFile path ReadMode
      -- Read contents strictly
      readF <- S.hGetContents hndl
      hClose hndl
-     --let fileLines = map T.pack (lines readF)
-     -- Get lines and filter lines beginning with #
-     let fileLines = [ x | x <- (map T.pack (lines readF)), (T.head $ T.stripStart x) /= '#' ]
-     return $ map getConfPair fileLines
+     
+     return $ map getConfPair (getFilteredLines readF)
 
 {-| Like getConfPairsFromFile' but reads file contents strictly. |-}
 getConfPairsFromFileS' :: FilePath -> IO [(String, String)]
 getConfPairsFromFileS' path = do
-
+     logDebug "getConfPairsFromFileS' called"
      pairs <- getConfPairsFromFileS path
      return $ map textToString pairs
 
 {-| Take a ByteString text, convert to lines and return Text pairs. |-}
 getConfPairsFromByteString :: BS.ByteString -> IO [(T.Text, T.Text)]
 getConfPairsFromByteString bS = do
-     
+     logDebug "getConfPairsFromByteString called"
      --let fileLines = map T.pack (lines $ BS.unpack bS)
      -- Get lines and filter lines beginning with #
-     let fileLines = [ x | x <- (map T.pack (lines $ BS.unpack bS)), (T.head $ T.stripStart x) /= '#' ]
+     let fileLines = [ x | x <- (map T.pack (lines $ BS.unpack bS)), x /= T.empty, (T.head $ T.stripStart x) /= '#' ]
      return $ map getConfPair fileLines
 
 {-| Like getConfPairsFromByteString but returns String. |-}
 getConfPairsFromByteString' :: BS.ByteString -> IO [(String, String)]
 getConfPairsFromByteString' bS = do
-     
+     logDebug "getConfPairsFromByteString' called"
      pairs <- getConfPairsFromByteString bS
      return $ map textToString pairs
 
@@ -141,7 +147,7 @@ getValueS = lookup
 {-| Take a bkr conf pair and write a .bkrm file in a temporary directory. |-}
 writeBkrMetaFile :: (String, String) -> IO FilePath
 writeBkrMetaFile confPair = do
-     
+     logDebug "writeBkrMetaFile called"
      -- Get tmp dir
      tmpDir <- getTemporaryDirectory
      -- Get hash of the file name
@@ -168,17 +174,21 @@ getConfSetting key = do
 {-| Get a list of the folders to back up. If the setting cannot be found an IO Error is raised. |-}
 getBackupFolders :: IO [FilePath]
 getBackupFolders = do
+     logDebug "getBackupFolders called"
+
      confSetting <- getConfSetting "folderstobackup"
      case confSetting of
-          Just x -> return $ map strip (split "," x)
+          Just x  -> return $ map strip (split "," x)
           Nothing -> ioError $ userError $ "Failed to find the configuration setting folderstobackup. Please check the configuration."
 
 {-| Get a list of files to ignore. If the settings cannot be found an empty list is returned |-}
 getFilesToIgnore :: IO [FilePath]
 getFilesToIgnore = do
+     logDebug "getFilesToIgnore called"
+
      confSetting <- getConfSetting "filestoignore"
      case confSetting of
-          Just x -> return $ map strip (split "," x)
+          Just x  -> return $ map strip (split "," x)
           Nothing -> do
                   logDebug $ "getFilesToIgnore: " ++ "the setting filestoignore was not found."
                   return []
@@ -186,9 +196,11 @@ getFilesToIgnore = do
 {-| Get a list of files to ignore be extension. If the settings cannot be found an empty list is returned |-}
 getFileExtensionsToIgnore :: IO [FilePath]
 getFileExtensionsToIgnore = do
+    logDebug "getFileExtensionsToIgnore called"
+
     confSetting <- getConfSetting "fileextensionstoignore"
     case confSetting of
-         Just x -> return $ map strip (split "," x)
+         Just x  -> return $ map strip (split "," x)
          Nothing -> do
                  logDebug $ "getFileExtensionsToIgnore: " ++ "the setting fileextensionstoignore was not found."
                  return []
@@ -196,9 +208,11 @@ getFileExtensionsToIgnore = do
 {-| Get a list of folders to ignore. If the settings cannot be found an empty list is returned |-}
 getFoldersToIgnore :: IO [FilePath]
 getFoldersToIgnore = do
+    logDebug "getFoldersToIgnore called"
+
     confSetting <- getConfSetting "folderstoignore"
     case confSetting of
-         Just x -> return $ map strip (split "," x)
+         Just x  -> return $ map strip (split "," x)
          Nothing -> do
                  logDebug $ "getFoldersToIgnore: " ++ "the setting folderstoignore was not found."
                  return []
@@ -207,6 +221,8 @@ getFoldersToIgnore = do
 |-} 
 getUseS3ReducedRedundancy :: IO (Maybe StorageClass)
 getUseS3ReducedRedundancy = do
+     logDebug "getUseS3ReducedRedundancy called"
+
      confSetting <- getConfSetting "uses3reducedredundancy"
      case confSetting of
           Just x -> if x == "yes"
@@ -215,3 +231,29 @@ getUseS3ReducedRedundancy = do
           Nothing -> do
                   logDebug $ "getUseS3ReducedRedundancy: " ++ "the setting uses3reducedredundancy was not found."
                   return $ Just ReducedRedundancy
+
+{-| Get the log priority and default to debug if it could not be found or is misconfigured. |-}
+getLogLevel :: IO Priority
+getLogLevel = do
+     --print "getLogLevel called"
+
+     confSetting <- getConfSetting "loglevel"
+     case confSetting of
+          Just x  -> case x of
+                         "notify"   -> return NOTICE
+                         "critical" -> return CRITICAL
+                         _          -> return DEBUG
+          Nothing -> return DEBUG
+
+{-| Get the file update check type, default to smart if it could not be found or is misconfigured. |-}
+getFileUpdateCheckType :: IO FileUpdateCheckType
+getFileUpdateCheckType = do
+     logDebug "getFileUpdateCheckType called"
+
+     confSetting <- getConfSetting "fileupdatecheck"
+     case confSetting of
+          Just x -> case x of
+                         "checksum" -> return FUCChecksum
+                         "date"     -> return FUCDate
+                         _          -> return FUCSmart
+          _      -> return FUCSmart

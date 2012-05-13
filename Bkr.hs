@@ -15,7 +15,7 @@ main :: IO ()
 main = do
      
      -- Set up logging
-     setupLogging
+     getLogLevel >>= setupLogging
   
      logNotice "Bkr started"
      
@@ -25,16 +25,16 @@ main = do
 
      -- Get local BkrMeta objects
      logNotice "Getting local files"
-     backupFolders <- getBackupFolders
-     bkrLocalMeta <- mapM F.getBkrObjects backupFolders
+     --bkrLocalMeta <- getBackupFolders >>= mapM F.getBkrObjects
+     bkrLocalMeta <- getBackupFolders >>= F.getBkrMeta'''     
      
      -- Filter objects to get local objects that are not backed up
      logNotice "Checking which files should be uploaded"
-     let objToUpload = filter (`notElem` bkrS3Meta) (concat bkrLocalMeta)
+     --let objToUpload = filter (`notElem` bkrS3Meta) (concat bkrLocalMeta)
+     let objToUpload = filter (`notElem` bkrS3Meta) bkrLocalMeta
      -- Create a list with a triple (bkrObj, no of bkrObj, nth bkrObj) to use as a counter
      let len = length objToUpload
      let counterList = zip3 objToUpload [len | x <- [1..]] [1..] -- We can use non ending lists since zip ends when the shortest (objToUpload) list ends. Got to love this lazy stuff.
-     
      logNotice $ (show len) ++ " files will be uploaded"
      -- For each element in objToUpload upload the local file then create a .bkrm file and upload it
      mapM putFiles counterList

@@ -1,14 +1,23 @@
 
+{-# LANGUAGE ScopedTypeVariables, OverloadedStrings #-}
 
 import qualified BkrLocalFile as F 
 import BkrS3Bucket
 import BkrConfig
 import Maybe (fromJust)
 import Hasher
-import System.Directory (removeFile)
+import System.Directory (removeFile, doesDirectoryExist)
+import BkrFundare
+import Data.Binary
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy.Char8 as C
+import BkrLocalMeta
+import BkrLogging
+import Filesystem.Path.CurrentOS as FS
 
 main :: IO ()
 main = do
+     getLogLevel >>= setupLogging
      {-
      allFiles <- getAllFiles "/Users/michaelsmietana/Pictures/bkrtst/_DSC2283.NEF"
      print allFiles
@@ -54,6 +63,47 @@ main = do
 
      putFile "/Users/michaelsmietana/Pictures/bkrtst/_DSC2285.NEF"
      -}
-     allF <- F.getAllFiles "/Users/michaelsmietana/Pictures/Stig"
-     print $ show $ getFileHash' allF
-     print "done"
+     --allF <- F.getAllFiles "/Users/michaelsmietana/Pictures/Stig"
+     --print $ show $ getFileHash' allF
+     --print "done"
+     {-
+     let tst0 = BkrMeta "/Users" "ldsölkfnöasdkn" "dslkölksdnflö"
+     let tst1 = BkrMeta "/Users/ms" "ldskldsn" "sldknlsdknlnsdlknsdl"
+     --BL.writeFile "./tst.txt" (BL.concat $ map encode [tst0, tst1])
+     BL.writeFile "./tst.txt" (encode tst0)
+     BL.appendFile "./tst.txt" ("\n" ++ encode tst1)
+     
+     getFile <- BL.readFile "./tst.txt"
+     let fileLines = C.lines getFile
+     
+     --d <- decode getFile
+     let d :: BkrMeta = decode $ fileLines !! 0
+     print $ show d
+     -}
+     --setTable
+     
+     --f <- F.getAllFolders' "/Users/michaelsmietana/Desktop" []
+     --print $ show f
+     {-
+     let metatst1 = BkrMeta "" "10" "100" "" ""
+     let metatst2 = BkrMeta "sdfa" "10" "100" "" ""
+     print $ show $ metatst1 == metatst2
+     
+     let metatst3 = BkrMeta "asd" "100" "10" "asd" "10"
+     let metatst4 = BkrMeta "" "" "10" "" "10"
+     print $ show $ metatst3 == metatst4     
+     -}
+     
+     t <- F.getAllFolders "/Users/michaelsmietana/Desktop/tst"
+     print $ show t
+     putStrLn $ t !! 0
+     exists <- mapM doesDirectoryExist t
+     print $ show exists
+     print $ show $ FS.decodeString $ t !! 0
+     print $ show $ toText $ FS.decodeString $ t !! 0
+     putStrLn $ show $ toText $ FS.decodeString $ t !! 0
+     --putStrLn $ toText $ FS.decodeString $ t !! 0
+     print $ map FS.valid (map FS.decodeString t)
+     
+     --t <- F.getBkrMeta''' ["/Users/michaelsmietana/Desktop"]
+     --print $ show t

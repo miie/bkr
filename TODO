@@ -6,5 +6,8 @@ Done - folders not to back in conf
 Done - multiple folders to back
 - cabal file + project dir structure
 Done - use BkrMetaCheck from object name from getBucket for more optimized check which files should be uploaded
-- cache local checksums for BkrMeta for a more optimized check which files should be uploaded
+Done - cache local checksums for BkrMeta for a more optimized check which files should be uploaded
 - add "sync mode" - synchronize the online content with local, removing items online that does not exist locally any more
+Done - Set debug level in conf
+- Handle gracefully if not permitted to write .bkrmeta file
+- Update uploaded file settings, like use S3 reduced redundancy
