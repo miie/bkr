@@ -7,18 +7,18 @@ module BkrS3Bucket ( getBkrObjects
 
 import qualified Aws
 import qualified Aws.S3 as S3
-import Data.Conduit (($$))
-import Data.Conduit.Binary (sinkIOHandle, sourceIOHandle)
+--import Data.Conduit (($$))
+--import Data.Conduit.Binary (sinkIOHandle)
 import Data.IORef (newIORef, readIORef)
 import Data.Monoid (mempty)
 
-import Maybe (fromJust)
-import Control.Monad (forM)
+--import Maybe (fromJust)
+--import Control.Monad (forM)
 
 import System.IO
-import System.Directory (getTemporaryDirectory, removeFile)
-import qualified Data.Knob as K
-import Data.ByteString (pack)
+--import System.Directory (getTemporaryDirectory, removeFile)
+--import qualified Data.Knob as K
+--import Data.ByteString (pack)
 
 import qualified Data.Text as T
 
@@ -31,14 +31,14 @@ import BkrLogging
 import Network.HTTP.Conduit
 --import qualified Data.ByteString.Lazy.UTF8 as B
 import qualified Data.ByteString as B
-import qualified Data.ByteString.UTF8 as BUTF8
-import qualified Data.ByteString.Lazy as LB
+--import qualified Data.ByteString.UTF8 as BUTF8
+--import qualified Data.ByteString.Lazy as LB
 import System.FilePath.Posix (takeFileName)
 
 import Prelude hiding (catch)
 import qualified Control.Exception as C
 import Control.Concurrent (threadDelay)
-import System.IO.Error (ioError, userError)
+--import System.IO.Error (ioError, userError)
 
 getBkrObjectKeys :: T.Text -> [T.Text] -> IO [T.Text]
 getBkrObjectKeys gbMarker objList = do
@@ -87,9 +87,12 @@ getBkrObjects = do
      --return bkrObjects
      return $ map getMetaKeys objectKeys
 
+{-
 splitObject :: String -> [T.Text]
 splitObject s = T.split (=='.') (T.pack s)
+-}
 
+getMetaKeys :: T.Text -> BkrMeta
 getMetaKeys key = BkrMeta { fullPath                 = "" 
                           , pathChecksum             = T.unpack $ kSplit !! 1
                           , fileChecksum             = T.unpack $ kSplit !! 2
@@ -98,7 +101,7 @@ getMetaKeys key = BkrMeta { fullPath                 = ""
                           }
                           where kSplit = T.split (=='.') key
                                
-
+{-
 {-| Deprecated -}
 getBkrObjectsOld :: IO [BkrMeta]
 getBkrObjectsOld = do
@@ -132,25 +135,31 @@ getBkrObjectsOld = do
      --print t1
      
      -- Filter the object keys for Bkr meta (.bkrm) objects (files)
-     let bkrObjectFiles = filter (\x -> hasBkrExtension x) objectKeys
+     --let bkrObjectFiles = filter (\x -> hasBkrExtension x) objectKeys
      --print "bkrObjectFiles: "
      --print bkrObjectFiles
      --print $ show $ length bkrObjectFiles
      
      bkrObjects <- getBkrObject objectKeys
      return bkrObjects
-
+-}
+{-
 {-| Deprecated. Filter function for filtering .bkrm objects (files). |-}
 hasBkrExtension :: T.Text -> Bool
 hasBkrExtension t = do
      if (Prelude.last $ T.split (=='.') t) == "bkrm"
         then True
         else False
+-}
 
+{-
 {-| A small function to save the object's data into a file handle. |-}
 saveObject :: IO Handle -> Aws.HTTPResponseConsumer ()
-saveObject hndl status headers source = source $$ sinkIOHandle hndl
+--saveObject hndl status headers source = source $$ sinkIOHandle hndl
+saveObject hndl _ _ source = source $$ sinkIOHandle hndl
+-}
 
+{-
 {-| Takes a list of bkr objects, gets them one by one from S3, parses content creating and returning a list of BkrObject's. This function uses the Knob package for in-memory temporary storage of the downloaded bkr object. |-}
 getBkrObject :: [T.Text] -> IO [BkrMeta]
 getBkrObject objNames = do
@@ -162,7 +171,7 @@ getBkrObject objNames = do
      metadataRef <- newIORef mempty
 
      -- Get tmp dir
-     tmpDir <- getTemporaryDirectory
+     --tmpDir <- getTemporaryDirectory
 
      objects <- forM objNames $ \fileName -> do   
         -- Get knob object and knob handle (knob is a in-memory virtual file) 
@@ -177,14 +186,15 @@ getBkrObject objNames = do
         hClose knobHndl
         -- Get the config pair and get path and checksum from the pair
         pairS <- getConfPairsFromByteString' knobDataContents
-        let path                     = fromJust $ lookup "fullpath" pairS
-        let checksum                 = fromJust $ lookup "checksum" pairS
-        let modificationTime         = fromJust $ lookup "modificationtime" pairS
-        let modificationTimeChecksum = fromJust $ lookup "modificationtimechecksum" pairS
+        let path_                     = fromJust $ lookup "fullpath" pairS
+        let checksum_                 = fromJust $ lookup "checksum" pairS
+        let modificationTime_         = fromJust $ lookup "modificationtime" pairS
+        let modificationTimeChecksum_ = fromJust $ lookup "modificationtimechecksum" pairS
 
-        return [BkrMeta path checksum (show $ getHashForString path) modificationTime modificationTimeChecksum]
+        return [BkrMeta path_ checksum_ (show $ getHashForString path_) modificationTime_ modificationTimeChecksum_]
      return (concat objects)
-
+-}
+{-
 {-| Like getBkrObject but uses a temporary file instead of a virtual file when fetching and reading the bkr object files. |-}
 getBkrObject' :: [T.Text] -> IO [BkrMeta]
 getBkrObject' fileNames = do
@@ -205,53 +215,54 @@ getBkrObject' fileNames = do
         bucketName <- getS3BucketName
         Aws.simpleAwsRef cfg metadataRef $ S3.getObject bucketName fileName (saveObject $ return hndl)
         -- Get a new handle to the tmp file, read it and get the path and checksum
-        hndl <- openBinaryFile tmpPath ReadMode
+        hndl_ <- openBinaryFile tmpPath ReadMode
         -- Get the conf pair from the tmp file and get path and checksum from the pair
         pairsS <- getConfPairsFromFileS' tmpPath
-        let path                     = fromJust $ lookup "fullpath" pairsS
-        let checksum                 = fromJust $ lookup "checksum" pairsS
-        let modificationTime         = fromJust $ lookup "modificationtime" pairsS
-        let modificationTimeChecksum = fromJust $ lookup "modificationtimechecksum" pairsS
+        let path_                     = fromJust $ lookup "fullpath" pairsS
+        let checksum_                 = fromJust $ lookup "checksum" pairsS
+        let modificationTime_         = fromJust $ lookup "modificationtime" pairsS
+        let modificationTimeChecksum_ = fromJust $ lookup "modificationtimechecksum" pairsS
         -- Close the handle and delete the tmp file
-        hClose hndl
+        hClose hndl_
         removeFile tmpPath
 
-        return [BkrMeta path checksum (show $ getHashForString path) modificationTime modificationTimeChecksum]
+        return [BkrMeta path_ checksum_ (show $ getHashForString path_) modificationTime_ modificationTimeChecksum_]
      return (concat objects)
+-}
 
 putBackupFile :: FilePath -> IO ()
-putBackupFile path = do
+putBackupFile filePath = do
         
-     let uploadName = T.pack $ (show $ getHashForString path) ++ "::" ++ takeFileName path
+     let uploadName = T.pack $ (show $ getHashForString filePath) ++ "::" ++ takeFileName filePath
      -- Get MD5 hash for file
      --contentMD5 <- getFileHash path
      --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
-     putFile path uploadName Nothing 0
+     putFile filePath uploadName Nothing 0
 
 putBkrMetaFile :: FilePath -> IO ()
-putBkrMetaFile path = do
+putBkrMetaFile filePath = do
 
-     let uploadName = T.pack $ "bkrm." ++ (takeFileName path)
+     let uploadName = T.pack $ "bkrm." ++ (takeFileName filePath)
      -- Get MD5 hash for file
      --contentMD5 <- getFileHash path
      --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
-     putFile path uploadName Nothing 0
+     putFile filePath uploadName Nothing 0
 
 {-| Upload file to S3. putFile will handle a failed attempt to upload the file by waiting 60 seconds and then retrying. If this fails five times it will raise an IO Error.
 |-}
 putFile :: FilePath -> T.Text -> Maybe B.ByteString -> Int -> IO ()
-putFile path uploadName contentMD5 noOfRetries = do
-     putFile' path uploadName contentMD5 `C.catch` \ (ex :: C.SomeException) -> do
+putFile filePath uploadName contentMD5 noOfRetries = do
+     putFile' filePath uploadName contentMD5 `C.catch` \ (ex :: C.SomeException) -> do
               if noOfRetries > 5
-                 then ioError $ userError $ "Failed to upload file " ++ path
+                 then ioError $ userError $ "Failed to upload file " ++ filePath
                  else do
                       logCritical $ "putFile: got exception: " ++ (show ex)
                       logCritical "Wait 60 sec then try again"
                       threadDelay $ 60 * 1000000
-                      putFile path uploadName contentMD5 (noOfRetries + 1)
+                      putFile filePath uploadName contentMD5 (noOfRetries + 1)
 
 putFile' :: FilePath -> T.Text -> Maybe B.ByteString -> IO ()
-putFile' path uploadName contentMD5 = do
+putFile' filePath uploadName contentMD5 = do
      
      -- Get S3 config
      cfg <- getS3Config
@@ -263,7 +274,7 @@ putFile' path uploadName contentMD5 = do
      --hndl <- openBinaryFile path ReadMode
      --fileContents <- LB.hGetContents hndl
      --Aws.simpleAwsRef cfg metadataRef $ S3.putObject uploadName getS3BucketName (RequestBodyLBS $ fileContents)
-     fileContents <- B.readFile path
+     fileContents <- B.readFile filePath
 
      -- Get bucket name
      bucketName <- getS3BucketName
@@ -272,8 +283,8 @@ putFile' path uploadName contentMD5 = do
      useReducedRedundancy <- getUseS3ReducedRedundancy
      
      -- Replace space with underscore in the upload name (S3 does not handle blanks in object names). Doing this is safe since the whole original path is stored in the meta file.
-     logDebug ("putFile: will upload file " ++ path)
-     Aws.simpleAwsRef cfg metadataRef S3.PutObject { S3.poObjectName          = T.replace " " "_" uploadName 
+     logDebug ("putFile: will upload file " ++ filePath)
+     _ <- Aws.simpleAwsRef cfg metadataRef S3.PutObject { S3.poObjectName          = T.replace " " "_" uploadName 
                                                    , S3.poBucket              = bucketName
                                                    , S3.poContentType         = Nothing
                                                    , S3.poCacheControl        = Nothing
@@ -296,4 +307,3 @@ putFile' path uploadName contentMD5 = do
      --ioResponseMetaData <- readIORef metadataRef
      --logDebug $ "putFile: response metadata: " ++ (show ioResponseMetaData)
      readIORef metadataRef >>= logDebug . ("putFile: response metadata: " ++) . show
-
