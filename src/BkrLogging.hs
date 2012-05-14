@@ -9,7 +9,7 @@ import System.Log.Logger
 import System.Log.Handler.Simple
 import System.Log.Handler (setFormatter)
 import System.Log.Formatter
-import System.Log.Handler.Growl
+--import System.Log.Handler.Growl
 
 setupLogging :: Priority -> IO ()
 setupLogging logLevel = do
