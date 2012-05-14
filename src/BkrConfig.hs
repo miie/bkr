@@ -21,7 +21,7 @@ module BkrConfig ( FileUpdateCheckType(..)
                  ) where
 
 import qualified Data.Text as T
-import Data.List (lines)
+--import Data.List (lines)
 import System.IO
 import qualified System.IO.Strict as S
 import qualified Data.ByteString.Char8 as BS
@@ -29,13 +29,13 @@ import qualified Data.ByteString.Char8 as BS
 import System.Directory (getTemporaryDirectory, getModificationTime)
 --import System.IO
 import Hasher
-import Control.Monad (mapM)
+--import Control.Monad (mapM)
 
-import List (find)
+--import List (find)
 
 import Data.String.Utils (split, strip)
-import Data.Maybe (fromJust)
-import System.IO.Error (ioError, userError)
+--import Data.Maybe (fromJust)
+--import System.IO.Error (ioError, userError)
 import BkrLogging
 import Aws.S3.Model (StorageClass(..))
 import System.Log.Logger (Priority(..))
@@ -160,7 +160,7 @@ writeBkrMetaFile confPair = do
      hndl <- openBinaryFile fullPath WriteMode
      -- Map over a list of the lines to write to the file
      let hPutStrLnHndl = hPutStrLn hndl
-     mapM hPutStrLnHndl ["[BkrMetaInfo]", ("fullpath: " ++ fst confPair), ("checksum: " ++ snd confPair), ("modificationtime: " ++ (show modTime)), ("fullpathchecksum: " ++ (show (getHashForString $ fst confPair))), ("modificationtimechecksum: " ++ (show (getHashForString $ show modTime)))]
+     _ <- mapM hPutStrLnHndl ["[BkrMetaInfo]", ("fullpath: " ++ fst confPair), ("checksum: " ++ snd confPair), ("modificationtime: " ++ (show modTime)), ("fullpathchecksum: " ++ (show (getHashForString $ fst confPair))), ("modificationtimechecksum: " ++ (show (getHashForString $ show modTime)))]
      -- Close the handle and return the file path
      hClose hndl
      return fullPath
