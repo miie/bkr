@@ -36,7 +36,7 @@ main = do
      let len = length objToUpload
      --let counterList = zip3 objToUpload [len | x <- [1..]] [1..] -- We can use non ending lists since zip ends when the shortest (objToUpload) list ends. Got to love this lazy stuff.
      let counterList = zip3 objToUpload [len] [1..] -- We can use non ending lists since zip ends when the shortest (objToUpload) list ends. Got to love this lazy stuff.
-     logNotice $ (show len) ++ " files will be uploaded"
+     logNotice $ show len ++ " files will be uploaded"
      -- For each element in objToUpload upload the local file then create a .bkrm file and upload it
      _ <- mapM putFiles counterList
      logNotice "done"  
@@ -45,7 +45,7 @@ putFiles :: (BkrMeta, Int, Int) -> IO ()
 putFiles (bkrObj, len, nthObj) = do
      
      let localPath = fullPath bkrObj
-     logNotice $ "Uploading " ++ (show nthObj) ++ "/" ++ (show len) ++ ": " ++ localPath
+     logNotice $ "Uploading " ++ show nthObj ++ "/" ++ show len ++ ": " ++ localPath
      -- Put local file
      S3B.putBackupFile localPath
      -- Get .bkrm file
