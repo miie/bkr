@@ -138,14 +138,14 @@ objUpdateFilter conn [pathChecksum_, fullPath_, _, _, _, noGets_] = do
      if randomNo > noGets_'
         then return True
         else do
-             print $ "objUpdateFilter: will delete obj: " ++ (show fullPath_)
+             print $ "objUpdateFilter: will delete obj: " ++ show fullPath_
              let query = "DELETE FROM bkrmeta WHERE pathchecksum = ?"
              _ <- quickQuery' conn query [pathChecksum_] `catch` \ (err :: SqlError) -> do
-                                                               logCritical $ "objUpdateFilter: got sql error: " ++ (show err)
+                                                               logCritical $ "objUpdateFilter: got sql error: " ++ show err
                                                                return []
              return False
 
-     where noGets_' = (fromSql noGets_) :: Int
+     where noGets_' = fromSql noGets_ :: Int
 objUpdateFilter _ _ = error "Failed to match expected pattern"
 
 {-| Gets BkrMeta objects from a .bkrmeta db file. getLocalMeta increments nogets every time it's called and it filters objects with objUpdateFilter.
@@ -157,19 +157,20 @@ getLocalMeta fileUpdateCheckType dbFilePath = do
      conn <- getConn dbFilePath
      let query = "SELECT pathchecksum, fullpath, filechecksum, filemodtime, filemodtimechecksum, nogets FROM bkrmeta"
      result <- quickQuery' conn query [] `catch` \ (err :: SqlError) -> do
-                                                                         logCritical $ "getLocalMeta: got sql error: " ++ (show err) ++ ", will disconnect conn"
+                                                                         logCritical $ "getLocalMeta: got sql error: " ++ show err ++ ", will disconnect conn"
                                                                          doDisconnect conn
                                                                          return []
      -- Increment nogets
      let query_ = "UPDATE bkrmeta SET nogets = nogets + 1"
      _ <- quickQuery' conn query_ [] `catch` \ (err :: SqlError) -> do
-                                                               logCritical $ "getLocalMeta: got sql error when incrementing nogets: " ++ (show err) ++ ", will disconnect conn"
+                                                               logCritical $ "getLocalMeta: got sql error when incrementing nogets: " ++ show err ++ ", will disconnect conn"
                                                                doDisconnect conn
                                                                return []
      -- Use smart update or check by date only
      if fileUpdateCheckType == FUCSmart
         then do
-           filteredObjects <- filterM (\x -> objUpdateFilter conn x) result
+           --filteredObjects <- filterM (\x -> objUpdateFilter conn x) result
+           filteredObjects <- filterM (objUpdateFilter conn) result
            doCommit conn
            doDisconnect conn
            return $ map convRow filteredObjects
@@ -182,11 +183,11 @@ getLocalMeta fileUpdateCheckType dbFilePath = do
            --convRow [pathChecksum, fullPath, fileChecksum, fileModTime, fileModChecksum, noGets] = 
            convRow [pathChecksum_, fullPath_, fileChecksum_, fileModTime_, fileModChecksum_, _] = 
                    BkrMeta path fileHash pathHash fileMod fileModHash
-                   where path        = (fromSql fullPath_) :: String
-                         fileHash    = (fromSql fileChecksum_) :: String
-                         pathHash    = (fromSql pathChecksum_) :: String
-                         fileMod     = (fromSql fileModTime_) :: String
-                         fileModHash = (fromSql fileModChecksum_) :: String
+                   where path        = fromSql fullPath_ :: String
+                         fileHash    = fromSql fileChecksum_ :: String
+                         pathHash    = fromSql pathChecksum_ :: String
+                         fileMod     = fromSql fileModTime_ :: String
+                         fileModHash = fromSql fileModChecksum_ :: String
            convRow _ = error "Failed to match expected pattern"
 
 {-| Checks if bkrmeta table exists and inserts it if it doesn't. |-}
@@ -198,7 +199,7 @@ setTableIfNeeded dbFilePath = do
              --result <- quickQuery' conn "SELECT * FROM bkrmeta LIMIT 1" []
              _ <- quickQuery' conn "SELECT * FROM bkrmeta LIMIT 1" []
              doDisconnect conn
-             logDebug $ "setTableIfNeeded: table exists"
+             logDebug "setTableIfNeeded: table exists"
              return ())
            (\e -> do 
                    let err = show (e :: SqlError)
@@ -218,7 +219,12 @@ insertBkrMeta dbFilePath bkrMetaList = do
      set dbFilePath query valuesList
 
      where getValList :: BkrMeta -> [SqlValue]
-           getValList bkrMeta = [toSql ((pathChecksum bkrMeta) :: String), toSql ((fullPath bkrMeta) :: String), toSql ((fileChecksum bkrMeta) :: String), toSql ((modificationTimeChecksum bkrMeta) :: String), toSql ((modificationTime bkrMeta) :: String), toSql (0 :: Int)]
+           getValList bkrMeta = [toSql (pathChecksum bkrMeta :: String),
+                                 toSql (fullPath bkrMeta :: String),
+                                 toSql (fileChecksum bkrMeta :: String),
+                                 toSql (modificationTimeChecksum bkrMeta :: String),
+                                 toSql (modificationTime bkrMeta :: String), 
+                                 toSql (0 :: Int)]
 
 {-| Delete BkrMeta objects from a .bkrmeta file. |-}
 deleteBkrMeta :: FilePath -> [BkrMeta] -> IO ()
@@ -233,4 +239,4 @@ deleteBkrMeta dbFilePath bkrMetaList = do
      set dbFilePath query valuesList
 
      where  getValList :: BkrMeta -> [SqlValue]
-            getValList bkrMeta = [toSql ((pathChecksum bkrMeta) :: String)]
+            getValList bkrMeta = [toSql (pathChecksum bkrMeta :: String)]
