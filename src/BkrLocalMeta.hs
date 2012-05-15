@@ -10,12 +10,12 @@ import Database.HDBC
 import Database.HDBC.Sqlite3 as SL
 import Prelude hiding (catch)
 import Control.Exception (catch)
-import System.Time (ClockTime(..))
+--import System.Time (ClockTime(..))
 import BkrLogging
-import Hasher (getHashForString)
+--import Hasher (getHashForString)
 import BkrFundare
 import System.Random (getStdRandom, randomR)
-import Control.Monad (filterM, when)
+import Control.Monad (filterM)
 import BkrConfig (FileUpdateCheckType(..))
 
 -- db convenience functions --
@@ -26,7 +26,8 @@ getConn path = do
      logDebug $ "getSqliteConnection: getting conn for path: " ++ path
      
      -- Try usong connectSqlite3 and connectSqlite3Raw if that fails (file system unicode support workaround for OS X)
-     SL.connectSqlite3 path `catch` \ (err :: SqlError) -> SL.connectSqlite3Raw path
+     --SL.connectSqlite3 path `catch` \ (err :: SqlError) -> SL.connectSqlite3Raw path
+     SL.connectSqlite3 path `catch` \ (_ :: SqlError) -> SL.connectSqlite3Raw path
 
 {-| Convenience function for disconnection a db connection. |-}
 doDisconnect :: IConnection conn => conn -> IO ()
@@ -68,7 +69,7 @@ set dbFilePath query values = do
                      doRollback conn
                      doDisconnect conn)
 
-
+{-
 {-| Convenience function for db insert, same as set but takes an established db connection instead. You need to create the connection and commit the query manually.
 
 Use as:
@@ -89,7 +90,9 @@ set' conn query values = do
                      let err = show (e :: SqlError)
                      logCritical $ "set': got SqlError: " ++ err ++ ", will rollback the transaction"
                      doRollback conn)
+-}
 
+{-
 setSimple :: IConnection conn => conn -> String -> [SqlValue] -> IO Integer
 setSimple conn query values = do
      logDebug $ "setSimple: called with query: " ++ query
@@ -98,7 +101,7 @@ setSimple conn query values = do
                                              logCritical $ "setSimple: got SqlError: " ++ err ++ ", will rollback the transaction"
                                              doRollback conn
                                              return 0)
-
+-}
 -- End db convenience functions --
 
 {-| Created a .bkrmeta db file and inserts the bkrmeta table. |-}
@@ -129,19 +132,21 @@ insertBkrMeta dbFilePath fullPath fileChecksum fileModTime = do
 {-| Filter function that gets a random number between 0-9 and checks if the number is larger then noGets. If larger returns IO True (object is read from the local db) and if smaller the object is deleted from the local db (insertBkrMeta will insert the object).
 |-}
 objUpdateFilter :: IConnection conn => conn -> [SqlValue] -> IO Bool
-objUpdateFilter conn [pathChecksum, fullPath, fileChecksum, fileModTime, fileModChecksum, noGets] = do
+--objUpdateFilter conn [pathChecksum, fullPath, fileChecksum, fileModTime, fileModChecksum, noGets] = do
+objUpdateFilter conn [pathChecksum_, fullPath_, _, _, _, noGets_] = do
      randomNo <- getStdRandom (randomR (0,9))
-     if randomNo > noGets_
+     if randomNo > noGets_'
         then return True
         else do
-             print $ "objUpdateFilter: will delete obj: " ++ (show fullPath)
+             print $ "objUpdateFilter: will delete obj: " ++ (show fullPath_)
              let query = "DELETE FROM bkrmeta WHERE pathchecksum = ?"
-             quickQuery' conn query [pathChecksum] `catch` \ (err :: SqlError) -> do
+             _ <- quickQuery' conn query [pathChecksum_] `catch` \ (err :: SqlError) -> do
                                                                logCritical $ "objUpdateFilter: got sql error: " ++ (show err)
                                                                return []
              return False
 
-     where noGets_ = (fromSql noGets) :: Int
+     where noGets_' = (fromSql noGets_) :: Int
+objUpdateFilter _ _ = error "Failed to match expected pattern"
 
 {-| Gets BkrMeta objects from a .bkrmeta db file. getLocalMeta increments nogets every time it's called and it filters objects with objUpdateFilter.
 |-}
@@ -156,8 +161,8 @@ getLocalMeta fileUpdateCheckType dbFilePath = do
                                                                          doDisconnect conn
                                                                          return []
      -- Increment nogets
-     let query = "UPDATE bkrmeta SET nogets = nogets + 1"
-     quickQuery' conn query [] `catch` \ (err :: SqlError) -> do
+     let query_ = "UPDATE bkrmeta SET nogets = nogets + 1"
+     _ <- quickQuery' conn query_ [] `catch` \ (err :: SqlError) -> do
                                                                logCritical $ "getLocalMeta: got sql error when incrementing nogets: " ++ (show err) ++ ", will disconnect conn"
                                                                doDisconnect conn
                                                                return []
@@ -174,13 +179,15 @@ getLocalMeta fileUpdateCheckType dbFilePath = do
            return $ map convRow result
 
      where convRow :: [SqlValue] -> BkrMeta
-           convRow [pathChecksum, fullPath, fileChecksum, fileModTime, fileModChecksum, noGets] = 
+           --convRow [pathChecksum, fullPath, fileChecksum, fileModTime, fileModChecksum, noGets] = 
+           convRow [pathChecksum_, fullPath_, fileChecksum_, fileModTime_, fileModChecksum_, _] = 
                    BkrMeta path fileHash pathHash fileMod fileModHash
-                   where path        = (fromSql fullPath) :: String
-                         fileHash    = (fromSql fileChecksum) :: String
-                         pathHash    = (fromSql pathChecksum) :: String
-                         fileMod     = (fromSql fileModTime) :: String
-                         fileModHash = (fromSql fileModChecksum) :: String
+                   where path        = (fromSql fullPath_) :: String
+                         fileHash    = (fromSql fileChecksum_) :: String
+                         pathHash    = (fromSql pathChecksum_) :: String
+                         fileMod     = (fromSql fileModTime_) :: String
+                         fileModHash = (fromSql fileModChecksum_) :: String
+           convRow _ = error "Failed to match expected pattern"
 
 {-| Checks if bkrmeta table exists and inserts it if it doesn't. |-}
 setTableIfNeeded :: FilePath -> IO ()
@@ -188,7 +195,8 @@ setTableIfNeeded dbFilePath = do
      logDebug $ "setTableIfNeeded: called for path: " ++ dbFilePath
      conn <- getConn dbFilePath
      catch (do
-             result <- quickQuery' conn "SELECT * FROM bkrmeta LIMIT 1" []
+             --result <- quickQuery' conn "SELECT * FROM bkrmeta LIMIT 1" []
+             _ <- quickQuery' conn "SELECT * FROM bkrmeta LIMIT 1" []
              doDisconnect conn
              logDebug $ "setTableIfNeeded: table exists"
              return ())
