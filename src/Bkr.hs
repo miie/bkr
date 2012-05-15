@@ -3,11 +3,11 @@ import BkrFundare
 import qualified BkrLocalFile as F
 import qualified BkrS3Bucket as S3B
 import BkrConfig
-import List (filter, zip3, concat)
+--import List (filter, zip3, concat)
 import System.Directory (removeFile)
-import Control.Monad (mapM, forM)
-import Data.Maybe (fromJust)
-import Data.String.Utils (split)
+--import Control.Monad (mapM, forM)
+--import Data.Maybe (fromJust)
+--import Data.String.Utils (split)
 
 import BkrLogging
 
@@ -34,10 +34,11 @@ main = do
      let objToUpload = filter (`notElem` bkrS3Meta) bkrLocalMeta
      -- Create a list with a triple (bkrObj, no of bkrObj, nth bkrObj) to use as a counter
      let len = length objToUpload
-     let counterList = zip3 objToUpload [len | x <- [1..]] [1..] -- We can use non ending lists since zip ends when the shortest (objToUpload) list ends. Got to love this lazy stuff.
+     --let counterList = zip3 objToUpload [len | x <- [1..]] [1..] -- We can use non ending lists since zip ends when the shortest (objToUpload) list ends. Got to love this lazy stuff.
+     let counterList = zip3 objToUpload [len] [1..] -- We can use non ending lists since zip ends when the shortest (objToUpload) list ends. Got to love this lazy stuff.
      logNotice $ (show len) ++ " files will be uploaded"
      -- For each element in objToUpload upload the local file then create a .bkrm file and upload it
-     mapM putFiles counterList
+     _ <- mapM putFiles counterList
      logNotice "done"  
 
 putFiles :: (BkrMeta, Int, Int) -> IO ()
