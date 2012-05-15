@@ -30,7 +30,7 @@ import System.Directory (getTemporaryDirectory, getModificationTime)
 --import System.IO
 import Hasher
 --import Control.Monad (mapM)
-
+import Control.Monad (liftM)
 --import List (find)
 
 import Data.String.Utils (split, strip)
@@ -47,7 +47,7 @@ data FileUpdateCheckType = FUCChecksum
 
 {-| Read lines from s and filter on empty lines and lines beginning with # |-}
 getFilteredLines :: String -> [T.Text]
-getFilteredLines s = [ x | x <- (map T.pack (lines s)), x /= T.empty, (T.head $ T.stripStart x) /= '#' ]
+getFilteredLines s = [ x | x <- map T.pack (lines s), x /= T.empty, T.head (T.stripStart x) /= '#' ]
 
 {-| TODO: add better description!
 Gets configuration pairs. This function takes a FilePath and reads the file lazy which might lead to unexpected consequences. If you want to have more control over the file handle use getConfPairsFromFile_ and if you want the file to be read strictly without the unwanted (or wanted) lazines side effects use getConfPairsFromFileS. 
@@ -111,7 +111,7 @@ getConfPairsFromByteString bS = do
      logDebug "getConfPairsFromByteString called"
      --let fileLines = map T.pack (lines $ BS.unpack bS)
      -- Get lines and filter lines beginning with #
-     let fileLines = [ x | x <- (map T.pack (lines $ BS.unpack bS)), x /= T.empty, (T.head $ T.stripStart x) /= '#' ]
+     let fileLines = [ x | x <- map T.pack (lines $ BS.unpack bS), x /= T.empty, T.head (T.stripStart x) /= '#' ]
      return $ map getConfPair fileLines
 
 {-| Like getConfPairsFromByteString but returns String. |-}
@@ -133,7 +133,7 @@ textToString x = (T.unpack $ fst x, T.unpack $ snd x)
 {-| Gets the value for a list of value pairs. The function matches on the first key found and does not check for multiple keys with the same name. If the key is not found Nothing is returned. |-}
 getValue :: T.Text -> [(T.Text, T.Text)] -> Maybe T.Text
 getValue _ [] = Nothing
-getValue key (x:xs) = if (fst x) == key
+getValue key (x:xs) = if fst x == key
                            then Just $ snd x
                            else getValue key xs
 
@@ -153,23 +153,31 @@ writeBkrMetaFile confPair = do
      -- Get hash of the file name
      let fullPathHash = show $ getHashForString $ fst confPair
      -- Get the full file path to the .bkrm file (<full path hash:file hash.bkrm>)
-     let fullPath = tmpDir ++ fullPathHash ++ "." ++ (snd confPair)
+     let fullPath = tmpDir ++ fullPathHash ++ "." ++ snd confPair
      -- Get file modification time
      modTime <- getModificationTime $ fst confPair 
      -- Open a file handle
      hndl <- openBinaryFile fullPath WriteMode
      -- Map over a list of the lines to write to the file
      let hPutStrLnHndl = hPutStrLn hndl
-     _ <- mapM hPutStrLnHndl ["[BkrMetaInfo]", ("fullpath: " ++ fst confPair), ("checksum: " ++ snd confPair), ("modificationtime: " ++ (show modTime)), ("fullpathchecksum: " ++ (show (getHashForString $ fst confPair))), ("modificationtimechecksum: " ++ (show (getHashForString $ show modTime)))]
+     _ <- mapM hPutStrLnHndl ["[BkrMetaInfo]", 
+                              "fullpath: " ++ fst confPair, 
+                              "checksum: " ++ snd confPair, 
+                              "modificationtime: " ++ show modTime, 
+                              "fullpathchecksum: " ++ show (getHashForString $ fst confPair), 
+                              "modificationtimechecksum: " ++ show (getHashForString $ show modTime)]
      -- Close the handle and return the file path
      hClose hndl
      return fullPath
 
 getConfSetting :: String -> IO (Maybe String)
+{-
 getConfSetting key = do
      --confPairs <- getConfPairsFromFileS' "bkr.conf"
      --return $ getValueS key confPairs
      getConfPairsFromFileS' "bkr.conf" >>= return . getValueS key
+-}
+getConfSetting key = liftM (getValueS key) (getConfPairsFromFileS' "bkr.conf")
 
 {-| Get a list of the folders to back up. If the setting cannot be found an IO Error is raised. |-}
 getBackupFolders :: IO [FilePath]
@@ -179,7 +187,7 @@ getBackupFolders = do
      confSetting <- getConfSetting "folderstobackup"
      case confSetting of
           Just x  -> return $ map strip (split "," x)
-          Nothing -> ioError $ userError $ "Failed to find the configuration setting folderstobackup. Please check the configuration."
+          Nothing -> ioError $ userError "Failed to find the configuration setting folderstobackup. Please check the configuration."
 
 {-| Get a list of files to ignore. If the settings cannot be found an empty list is returned |-}
 getFilesToIgnore :: IO [FilePath]
