@@ -7,7 +7,7 @@ module BkrLocalFile ( getBkrObjects
                     , getBkrMeta'''
                     ) where
 
-import Control.Monad (forM, filterM)
+import Control.Monad (forM, filterM, liftM)
 import System.Directory (doesDirectoryExist, getDirectoryContents, doesFileExist, getModificationTime)
 import System.FilePath ((</>), normalise, takeExtensions, takeDirectory)
 import Prelude hiding (catch)
@@ -22,16 +22,18 @@ import BkrConfig (getFilesToIgnore, getFileExtensionsToIgnore, getFoldersToIgnor
 import BkrLocalMeta
 
 filterExt :: [FilePath] -> [FilePath] -> [FilePath]
-filterExt ignoreList = filter ((\x -> (takeExtensions x) `notElem` ignoreList))
+filterExt ignoreList = filter (\x -> takeExtensions x `notElem` ignoreList)
 
 filterFolder :: [FilePath] -> [FilePath] -> [FilePath]
-filterFolder ignoreList = filter ((\x -> (takeDirectory x) `notElem` ignoreList))
+filterFolder ignoreList = filter (\x -> takeDirectory x `notElem` ignoreList)
+
 
 filterFile :: [FilePath] -> [FilePath] -> [FilePath]
-filterFile ignoreList = filter (\x -> x `notElem` ignoreList)
+--filterFile ignoreList = filter (\x -> x `notElem` ignoreList)
+filterFile ignoreList = filter (`notElem` ignoreList)
 
 getFilesToFilter :: IO [FilePath]
-getFilesToFilter = do
+getFilesToFilter = --do
      --filesToFilter <- getFilesToIgnore
      --return $ [".", "..", ".bkrmeta"] ++ filesToIgnore
      getFilesToIgnore >>= return . (++) [".", "..", ".bkrmeta"]
@@ -45,9 +47,9 @@ getAllFiles topPath = do
      foldersToIgnore <- getFoldersToIgnore
      -- Filter files on extension and files to ignore
      --let properNames = (filterExt fileExtToIgnore) $ filterFile ([".", "..", ".bkrmeta"] ++ filesToIgnore) names
-     let properNames = (filterExt fileExtToIgnore) $ filterFile (filesToIgnore) names
+     let properNames = filterExt fileExtToIgnore $ filterFile filesToIgnore names
      -- Map files with topPath to get full path and filter on folders to ignore
-     let allPaths = (filterFolder foldersToIgnore) $ map (topPath </>) properNames
+     let allPaths = filterFolder foldersToIgnore $ map (topPath </>) properNames
      paths <- forM allPaths $ \path -> do
            isDirectory <- doesDirectoryExist path
            if isDirectory
@@ -61,7 +63,7 @@ getFilesInFolder path = do
      filesToIgnore <- getFilesToFilter
      fileExtToIgnore <- getFileExtensionsToIgnore
      -- Filter files on extension and files to ignore
-     let properNames = (filterExt fileExtToIgnore) $ filterFile (filesToIgnore) names
+     let properNames = filterExt fileExtToIgnore $ filterFile filesToIgnore names
      -- Map files with topPath to get full path and filter on files
      filterM doesFileExist (map (path </>) properNames)
 
@@ -70,13 +72,14 @@ getAllFolders topPath = do
      names <- getDirectoryContents topPath `catch` \ (ex :: IOException) -> handleIO ex topPath
      -- Map files with topPath to get full path and filter on folders to ignore
      foldersToIgnore <- getFoldersToIgnore
-     let paths = (filterFolder foldersToIgnore) $ map (topPath </>) (filterFile ([".", ".."]) names)
+     let paths = filterFolder foldersToIgnore $ map (topPath </>) (filterFile [".", ".."] names)
      folders <- filterM doesDirectoryExist paths
      allFolders <- mapM getAllFolders folders
-     let allF = map normalise ((concat allFolders) ++ folders)
+     --let allF = map normalise (concat allFolders ++ folders)
      --return . reverse $ (concat allFolders) ++ folders
      --print $ "all: " ++ show all
-     return allF
+     --return allF
+     return $ map normalise (concat allFolders ++ folders)
 {-
 getAllFilesOld :: FilePath -> IO [FilePath]
 getAllFilesOld topPath = do
@@ -191,8 +194,10 @@ getBkrMeta''' :: [FilePath] -> IO [BkrMeta]
 getBkrMeta''' paths = do
      allPaths <- mapM getAllFolders paths
      --print $ "allPaths: " ++ show ((concat allPaths) ++ paths)
-     bkrMeta <- mapM folderCompareAndGetBkrMeta ((concat allPaths) ++ paths)
-     return $ concat bkrMeta
+     --bkrMeta <- mapM folderCompareAndGetBkrMeta (concat allPaths ++ paths)
+     --return $ concat bkrMeta
+     --mapM folderCompareAndGetBkrMeta (concat allPaths ++ paths) >>= return . concat
+     liftM concat (mapM folderCompareAndGetBkrMeta (concat allPaths ++ paths))
 
 {-
 --not used:
