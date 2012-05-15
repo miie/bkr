@@ -7,14 +7,14 @@ module BkrLocalFile ( getBkrObjects
                     , getBkrMeta'''
                     ) where
 
-import Control.Monad (forM, mapM, filterM)
+import Control.Monad (forM, filterM)
 import System.Directory (doesDirectoryExist, getDirectoryContents, doesFileExist, getModificationTime)
 import System.FilePath ((</>), normalise, takeExtensions, takeDirectory)
 import Prelude hiding (catch)
 import Control.Exception
 
-import Data.Digest.Pure.MD5 (md5, MD5Digest)
-import qualified Data.ByteString.Lazy as L
+--import Data.Digest.Pure.MD5 (md5, MD5Digest)
+--import qualified Data.ByteString.Lazy as L
 
 import Hasher
 import BkrFundare
@@ -73,11 +73,11 @@ getAllFolders topPath = do
      let paths = (filterFolder foldersToIgnore) $ map (topPath </>) (filterFile ([".", ".."]) names)
      folders <- filterM doesDirectoryExist paths
      allFolders <- mapM getAllFolders folders
-     let all = map normalise ((concat allFolders) ++ folders)
+     let allF = map normalise ((concat allFolders) ++ folders)
      --return . reverse $ (concat allFolders) ++ folders
      --print $ "all: " ++ show all
-     return all
-
+     return allF
+{-
 getAllFilesOld :: FilePath -> IO [FilePath]
 getAllFilesOld topPath = do
      names <- getDirectoryContents topPath `catch` \ (ex :: IOException) -> handleIO ex topPath
@@ -93,9 +93,9 @@ getAllFilesOld topPath = do
               then getAllFiles path
               else return [normalise path]
      return $ concat paths
-
+-}
 handleIO :: IOException -> FilePath -> IO [FilePath]
-handleIO ex path = do
+handleIO _ path = do
      pathIsFile <- doesFileExist path
      if pathIsFile
         then return [path]
@@ -127,10 +127,10 @@ getBkrMeta_ :: FilePath -> IO BkrMeta
 getBkrMeta_ path = do
      modTime <- getModificationTime path
      return $ BkrMeta path "" (show $ getHashForString path) "" (show $ getHashForString $ show modTime)
-
+{-
 combine_ :: FilePath -> FilePath
 combine_ path = (++) path "/.bkrmeta"
-
+-}
 getCachedBkrMetaList :: FilePath -> IO [BkrMeta]
 getCachedBkrMetaList dotbkrmetaFile = do
      -- Get file update check type. checksum -> do not check .bkrmeta files, date and smart -> pass type to getLocalMeta
