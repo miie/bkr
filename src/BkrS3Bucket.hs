@@ -63,7 +63,7 @@ getBkrObjectKeys gbMarker objList = do
      --print =<< readIORef metadataRef
      -- Log the response metadata.
      ioResponseMetaData <- readIORef metadataRef
-     logDebug $ "getBkrObjectKeys: response metadata: " ++ (show ioResponseMetaData)
+     logDebug $ "getBkrObjectKeys: response metadata: " ++ show ioResponseMetaData
 
      -- Get bucket contents with gbrContents. gbrContents gets [ObjectInfo]
      let bkrBucketContents = S3.gbrContents s3BkrBucket
@@ -74,7 +74,7 @@ getBkrObjectKeys gbMarker objList = do
      let objects = map S3.objectKey bkrBucketContents
      --print $ show $ head objects
      -- S3 is limited to fetch 1000 objects so make sure 
-     if (length objects) > 999
+     if length objects > 999
         then getBkrObjectKeys (last objects) (objList ++ objects)
         else return $ objList ++ objects
 
@@ -82,7 +82,7 @@ getBkrObjects :: IO [BkrMeta]
 getBkrObjects = do
           
      objectKeys <- getBkrObjectKeys (T.pack "") []
-     logNotice $ "Got " ++ (show $ length objectKeys) ++ " objects from S3"
+     logNotice $ "Got " ++ show (length objectKeys) ++ " objects from S3"
      --bkrObjects <- getBkrObject objectKeys
      --return bkrObjects
      return $ map getMetaKeys objectKeys
@@ -233,7 +233,7 @@ getBkrObject' fileNames = do
 putBackupFile :: FilePath -> IO ()
 putBackupFile filePath = do
         
-     let uploadName = T.pack $ (show $ getHashForString filePath) ++ "::" ++ takeFileName filePath
+     let uploadName = T.pack $ show (getHashForString filePath) ++ "::" ++ takeFileName filePath
      -- Get MD5 hash for file
      --contentMD5 <- getFileHash path
      --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
@@ -242,7 +242,7 @@ putBackupFile filePath = do
 putBkrMetaFile :: FilePath -> IO ()
 putBkrMetaFile filePath = do
 
-     let uploadName = T.pack $ "bkrm." ++ (takeFileName filePath)
+     let uploadName = T.pack $ "bkrm." ++ takeFileName filePath
      -- Get MD5 hash for file
      --contentMD5 <- getFileHash path
      --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
@@ -251,12 +251,12 @@ putBkrMetaFile filePath = do
 {-| Upload file to S3. putFile will handle a failed attempt to upload the file by waiting 60 seconds and then retrying. If this fails five times it will raise an IO Error.
 |-}
 putFile :: FilePath -> T.Text -> Maybe B.ByteString -> Int -> IO ()
-putFile filePath uploadName contentMD5 noOfRetries = do
-     putFile' filePath uploadName contentMD5 `C.catch` \ (ex :: C.SomeException) -> do
+putFile filePath uploadName contentMD5 noOfRetries =
+     putFile' filePath uploadName contentMD5 `C.catch` \ (ex :: C.SomeException) ->
               if noOfRetries > 5
                  then ioError $ userError $ "Failed to upload file " ++ filePath
                  else do
-                      logCritical $ "putFile: got exception: " ++ (show ex)
+                      logCritical $ "putFile: got exception: " ++ show ex
                       logCritical "Wait 60 sec then try again"
                       threadDelay $ 60 * 1000000
                       putFile filePath uploadName contentMD5 (noOfRetries + 1)
