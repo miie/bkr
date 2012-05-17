@@ -11,3 +11,8 @@ Done - cache local checksums for BkrMeta for a more optimized check which files 
 Done - Set debug level in conf
 - Handle gracefully if not permitted to write .bkrmeta file
 - Update uploaded file settings, like use S3 reduced redundancy
+- read bkr.config from:
+  1. command line setting
+  2. user home dir
+  3. ./bkr.conf
+  4. give a valid error
