@@ -59,15 +59,18 @@ getConfPairsFromFile path = do
      hndl <- openBinaryFile path ReadMode
      readF <- hGetContents hndl
      
-     return $ map getConfPair (getFilteredLines readF)
+     -- Just testing some styles. I'm not sure which one looks better, the first one is prabably easier to read.
+     --return $ map getConfPair (getFilteredLines readF)
+     return $ getConfPair `map` getFilteredLines readF
 
 {-| Like getConfPairsFromFile but gets a String pair instead of Text. |-}
 getConfPairsFromFile' :: FilePath -> IO [(String, String)]
 getConfPairsFromFile' path = do
      logDebug "getConfPairsFromFile' called"
      
-     pairs <- getConfPairsFromFile path
-     return $ map textToString pairs
+     --pairs <- getConfPairsFromFile path
+     --return $ map textToString pairs
+     getConfPairsFromFile path >>= return . map textToString
 
 {-| Like getConfPairsFromFile but takes a file handle instead of FilePath. |-}
 getConfPairsFromFile_ :: Handle -> IO [(T.Text, T.Text)]
@@ -83,8 +86,9 @@ getConfPairsFromFile_' :: Handle -> IO [(String, String)]
 getConfPairsFromFile_' hndl = do
      logDebug "getConfPairsFromFile_' called"
      
-     pairs <- getConfPairsFromFile_ hndl
-     return $ map textToString pairs
+     --pairs <- getConfPairsFromFile_ hndl
+     --return $ map textToString pairs
+     getConfPairsFromFile_ hndl >>= return . map textToString
 
 {-| Like getConfPairsFromFile but reads file contents strictly. |-}
 getConfPairsFromFileS :: FilePath -> IO [(T.Text, T.Text)]
@@ -102,8 +106,10 @@ getConfPairsFromFileS path = do
 getConfPairsFromFileS' :: FilePath -> IO [(String, String)]
 getConfPairsFromFileS' path = do
      logDebug "getConfPairsFromFileS' called"
-     pairs <- getConfPairsFromFileS path
-     return $ map textToString pairs
+
+     --pairs <- getConfPairsFromFileS path
+     --return $ map textToString pairs
+     getConfPairsFromFileS path >>= return . map textToString
 
 {-| Take a ByteString text, convert to lines and return Text pairs. |-}
 getConfPairsFromByteString :: BS.ByteString -> IO [(T.Text, T.Text)]
@@ -118,8 +124,10 @@ getConfPairsFromByteString bS = do
 getConfPairsFromByteString' :: BS.ByteString -> IO [(String, String)]
 getConfPairsFromByteString' bS = do
      logDebug "getConfPairsFromByteString' called"
-     pairs <- getConfPairsFromByteString bS
-     return $ map textToString pairs
+
+     --pairs <- getConfPairsFromByteString bS
+     --return $ map textToString pairs
+     getConfPairsFromByteString bS >>= return . map textToString
 
 {-| Get a pair for Text line. |-}
 getConfPair :: T.Text -> (T.Text, T.Text)
