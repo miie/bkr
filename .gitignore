@@ -15,3 +15,7 @@ Bkr
 test.db
 
 tst.txt
+
+src/Main
+
+dist/*
