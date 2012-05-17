@@ -15,6 +15,7 @@ import Aws.Signature
 import Aws.SimpleDb.Info
 import Aws.Sqs.Info
 import Data.Maybe (fromJust)
+import Control.Monad (liftM)
 
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Text as T
@@ -39,6 +40,10 @@ getS3Config = do
                           }
 
 getS3BucketName :: IO T.Text
-getS3BucketName = do
-     confPairs <- getConfPairsFromFileS' "bkr.conf"
-     return $ T.pack $ fromJust $ lookup "s3bucketname" confPairs
+--getS3BucketName = do
+     --confPairs <- getConfPairsFromFileS' "bkr.conf"
+     --return $ T.pack $ fromJust $ lookup "s3bucketname" confPairs
+     
+--getS3BucketName = getConfPairsFromFileS' "bkr.conf" >>= return . T.pack . fromJust . lookup "s3bucketname"
+
+getS3BucketName = liftM (T.pack . fromJust . lookup "s3bucketname") (getConfPairsFromFileS' "bkr.conf")
