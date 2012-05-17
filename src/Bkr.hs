@@ -1,15 +1,17 @@
 
-import BkrFundare
-import qualified BkrLocalFile as F
-import qualified BkrS3Bucket as S3B
-import BkrConfig
---import List (filter, zip3, concat)
+import Bkr.BkrFundare
+import Bkr.BkrConfig
+import Bkr.BkrLogging
+import qualified Bkr.BkrLocalFile as F
+import qualified Bkr.TargetServices.S3.BkrS3Bucket as S3B
+
 import System.Directory (removeFile)
+--import List (filter, zip3, concat)
 --import Control.Monad (mapM, forM)
 --import Data.Maybe (fromJust)
 --import Data.String.Utils (split)
 
-import BkrLogging
+
 
 main :: IO ()
 main = do
