@@ -21,8 +21,6 @@ import Control.Exception
 --import Data.Digest.Pure.MD5 (md5, MD5Digest)
 --import qualified Data.ByteString.Lazy as L
 
-
-
 filterExt :: [FilePath] -> [FilePath] -> [FilePath]
 filterExt ignoreList = filter (\x -> takeExtensions x `notElem` ignoreList)
 
@@ -112,9 +110,10 @@ getBkrMeta path = do
      return $ BkrMeta path (show fileHash) (show $ getHashForString path)
 -}
 getBkrObjects :: FilePath -> IO [BkrMeta]
-getBkrObjects path = do
-     allFiles <- getAllFiles path
-     mapM getBkrMeta allFiles
+getBkrObjects path = --do
+     --allFiles <- getAllFiles path
+     --mapM getBkrMeta allFiles
+     getAllFiles path >>= mapM getBkrMeta
 {-
 getLocalBkrObjects :: FilePath -> IO [BkrMeta]
 getLocalBkrObjects path = do
@@ -146,8 +145,9 @@ getCachedBkrMetaList dotbkrmetaFile = do
                 -- Check that the .bkrmeta file exist and get all cached BkrMeta objects
                 bkrMetaFile <- filterM doesFileExist [dotbkrmetaFile]
                 let getLocalMeta' = getLocalMeta updateFileCheck
-                cachedBkrMetaList <- mapM getLocalMeta' bkrMetaFile
-                return $ concat cachedBkrMetaList
+                --cachedBkrMetaList <- mapM getLocalMeta' bkrMetaFile
+                --return $ concat cachedBkrMetaList
+                mapM getLocalMeta' bkrMetaFile >>= return . concat
      
 folderCompareAndGetBkrMeta :: FilePath -> IO [BkrMeta]
 folderCompareAndGetBkrMeta path = do
