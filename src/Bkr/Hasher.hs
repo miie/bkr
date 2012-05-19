@@ -2,20 +2,12 @@
 
 module Bkr.Hasher ( getFileHash
                   , getHashForString
-                  --, getFileHash'
                   ) where
-
-import qualified Data.ByteString.Lazy.UTF8 as UB
-import qualified Data.ByteString.Lazy as B
 
 import Data.Digest.Pure.MD5 (md5, MD5Digest)
 
---import qualified Crypto.Hash.MD5 as CH
---import qualified Data.ByteString.UTF8 as SB
---import System.IO.Strict (SIO)
---import qualified System.IO.Strict as SIO
-
---import Control.Monad (mapM)
+import qualified Data.ByteString.Lazy.UTF8 as UB
+import qualified Data.ByteString.Lazy as B
 
 {-| Gets a MD5Digest for a file. |-}
 getFileHash :: FilePath -> IO MD5Digest
