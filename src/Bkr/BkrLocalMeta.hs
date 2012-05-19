@@ -29,26 +29,19 @@ getConn path = do
      logDebug $ "getSqliteConnection: getting conn for path: " ++ path
      
      -- Try usong connectSqlite3 and connectSqlite3Raw if that fails (file system unicode support workaround for OS X)
-     --SL.connectSqlite3 path `catch` \ (err :: SqlError) -> SL.connectSqlite3Raw path
      SL.connectSqlite3 path `catch` \ (_ :: SqlError) -> SL.connectSqlite3Raw path
 
 {-| Convenience function for disconnection a db connection. |-}
 doDisconnect :: IConnection conn => conn -> IO ()
-doDisconnect conn = do 
-     logDebug "doDisconnect called"
-     disconnect conn
+doDisconnect conn = logDebug "doDisconnect called" >> disconnect conn
 
 {-| Convenience function for commiting a ongoing transaction. |-}
 doCommit :: IConnection conn => conn -> IO ()
-doCommit conn = do 
-     logDebug "doCommit called"
-     commit conn
+doCommit conn = logDebug "doCommit called" >> commit conn
 
 {-| Convenience function for rolling back a transaction. |-}
 doRollback :: IConnection conn => conn -> IO ()
-doRollback conn = do
-     logDebug "doRollback called"
-     rollback conn
+doRollback conn = logDebug "doRollback called" >> rollback conn
 
 {-| Convenience function for db insert. Takes file path to the db file and commits the transaction automatically.
 
@@ -72,39 +65,6 @@ set dbFilePath query values = do
                      doRollback conn
                      doDisconnect conn)
 
-{-
-{-| Convenience function for db insert, same as set but takes an established db connection instead. You need to create the connection and commit the query manually.
-
-Use as:
-@
-conn <- getSqliteConnection "pathToDBFile.db"
-set' conn "INSERT INTO table VALUES (?, ?)" [[toSql (1 :: Int), toSql ("text" :: String)],[toSql (2 :: Int), SqlNull]]
-doCommit conn
-doDisconnect conn
-@
-|-}
-set' :: IConnection conn => conn -> String -> [[SqlValue]] -> IO ()
-set' conn query values = do 
-     logDebug $ "set': called with query: " ++ query
-     catch (do 
-               stmt <- prepare conn query
-               executeMany stmt values)
-           (\e -> do 
-                     let err = show (e :: SqlError)
-                     logCritical $ "set': got SqlError: " ++ err ++ ", will rollback the transaction"
-                     doRollback conn)
--}
-
-{-
-setSimple :: IConnection conn => conn -> String -> [SqlValue] -> IO Integer
-setSimple conn query values = do
-     logDebug $ "setSimple: called with query: " ++ query
-     run conn query values `catch` (\e -> do 
-                                             let err = show (e :: SqlError)
-                                             logCritical $ "setSimple: got SqlError: " ++ err ++ ", will rollback the transaction"
-                                             doRollback conn
-                                             return 0)
--}
 -- End db convenience functions --
 
 {-| Created a .bkrmeta db file and inserts the bkrmeta table. |-}
@@ -114,23 +74,6 @@ setTable dbFilePath = do
      
      let query = "CREATE TABLE IF NOT EXISTS bkrmeta (pathchecksum TEXT PRIMARY KEY, fullpath TEXT NOT NULL, filechecksum TEXT NOT NULL, filemodtimechecksum TEXT NOT NULL, filemodtime TEXT, nogets INTEGER)"
      set dbFilePath query [[]]
-
-
-{-
-getValuesList :: FilePath -> String -> ClockTime -> Int -> [SqlValue]
-getValuesList fullPath fileChecksum fileModTime noGets = [toSql ((show $ getHashForString fullPath) :: String), toSql (fullPath :: String), toSql (fileChecksum :: String), toSql ((show $ getHashForString $ show fileModTime) :: String), toSql (fileModTime :: ClockTime), toSql (noGets :: Int)]
-
-
-insertBkrMeta :: FilePath -> String -> String -> ClockTime -> IO ()
-insertBkrMeta dbFilePath fullPath fileChecksum fileModTime = do
-     --logDebug $ "insertBkrMeta: called for path: " ++ dbFilePath
-     --conn <- getConn dbFilePath
-     let query = "INSERT INTO bkrmeta (pathchecksum, fullpath, filechecksum, filemodtimechecksum, filemodtime, nogets) VALUES (?,?,?,?,?,?)"
-     --set conn query [getValuesList fullPath fileChecksum fileModTime 0]
-     --doCommit conn
-     --doDisconnect conn
-     set dbFilePath query [getValuesList fullPath fileChecksum fileModTime 0]
--}
 
 {-| Filter function that gets a random number between 0-9 and checks if the number is larger then noGets. If larger returns IO True (object is read from the local db) and if smaller the object is deleted from the local db (insertBkrMeta will insert the object).
 |-}
@@ -243,3 +186,53 @@ deleteBkrMeta dbFilePath bkrMetaList = do
 
      where  getValList :: BkrMeta -> [SqlValue]
             getValList bkrMeta = [toSql (pathChecksum bkrMeta :: String)]
+
+{-
+{-| Convenience function for db insert, same as set but takes an established db connection instead. You need to create the connection and commit the query manually.
+
+Use as:
+@
+conn <- getSqliteConnection "pathToDBFile.db"
+set' conn "INSERT INTO table VALUES (?, ?)" [[toSql (1 :: Int), toSql ("text" :: String)],[toSql (2 :: Int), SqlNull]]
+doCommit conn
+doDisconnect conn
+@
+|-}
+set' :: IConnection conn => conn -> String -> [[SqlValue]] -> IO ()
+set' conn query values = do 
+     logDebug $ "set': called with query: " ++ query
+     catch (do 
+               stmt <- prepare conn query
+               executeMany stmt values)
+           (\e -> do 
+                     let err = show (e :: SqlError)
+                     logCritical $ "set': got SqlError: " ++ err ++ ", will rollback the transaction"
+                     doRollback conn)
+-}
+
+{-
+setSimple :: IConnection conn => conn -> String -> [SqlValue] -> IO Integer
+setSimple conn query values = do
+     logDebug $ "setSimple: called with query: " ++ query
+     run conn query values `catch` (\e -> do 
+                                             let err = show (e :: SqlError)
+                                             logCritical $ "setSimple: got SqlError: " ++ err ++ ", will rollback the transaction"
+                                             doRollback conn
+                                             return 0)
+-}
+
+{-
+getValuesList :: FilePath -> String -> ClockTime -> Int -> [SqlValue]
+getValuesList fullPath fileChecksum fileModTime noGets = [toSql ((show $ getHashForString fullPath) :: String), toSql (fullPath :: String), toSql (fileChecksum :: String), toSql ((show $ getHashForString $ show fileModTime) :: String), toSql (fileModTime :: ClockTime), toSql (noGets :: Int)]
+
+
+insertBkrMeta :: FilePath -> String -> String -> ClockTime -> IO ()
+insertBkrMeta dbFilePath fullPath fileChecksum fileModTime = do
+     --logDebug $ "insertBkrMeta: called for path: " ++ dbFilePath
+     --conn <- getConn dbFilePath
+     let query = "INSERT INTO bkrmeta (pathchecksum, fullpath, filechecksum, filemodtimechecksum, filemodtime, nogets) VALUES (?,?,?,?,?,?)"
+     --set conn query [getValuesList fullPath fileChecksum fileModTime 0]
+     --doCommit conn
+     --doDisconnect conn
+     set dbFilePath query [getValuesList fullPath fileChecksum fileModTime 0]
+-}

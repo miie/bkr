@@ -20,18 +20,10 @@ import Data.Digest.Pure.MD5 (md5, MD5Digest)
 {-| Gets a MD5Digest for a file. |-}
 getFileHash :: FilePath -> IO MD5Digest
 getFileHash path = do
-     --print "Getting Hash"
      --L.readFile path >>= return . md5
+     
      readF <- B.readFile path
      return $! md5 readF
-
--- Just testing...
-{-getFileHash' paths = do
-     --print "Getting Hash"
-     --L.readFile path >>= return . md5
-     allFiles <- mapM L.readFile paths
-     return $ map md5 allFiles 
--}
 
 {-| Gets a MD5Digest for a String. Example:
 @
@@ -39,4 +31,4 @@ print $ show $ getHashForString "sdknafsfadsäöåfas"
 @
 |-}
 getHashForString :: String -> MD5Digest
-getHashForString str = md5 $ UB.fromString str
+getHashForString = md5 . UB.fromString
