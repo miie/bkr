@@ -28,7 +28,7 @@ main = do
      -- Get local BkrMeta objects
      logNotice "Getting local files"
      --bkrLocalMeta <- getBackupFolders >>= mapM F.getBkrObjects
-     bkrLocalMeta <- getBackupFolders >>= F.getBkrMeta'''     
+     bkrLocalMeta <- getBackupFolders >>= F.getBkrMetaForLocalPaths     
      
      -- Filter objects to get local objects that are not backed up
      logNotice "Checking which files should be uploaded"
