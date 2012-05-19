@@ -3,7 +3,7 @@
 
 module Bkr.BkrLocalFile ( getBkrMetaForLocalPaths
                         --, getBkrObjects
-                        , getAllFolders
+                        --, getAllFolders
                         --, getAllFiles
                         ) where
 
