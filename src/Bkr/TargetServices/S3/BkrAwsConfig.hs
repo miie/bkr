@@ -23,7 +23,7 @@ import qualified Data.Text as T
 getS3Config :: IO Configuration
 getS3Config = do
      -- Get AWS access and secret keys from bkr.conf
-     confPairs <- getConfPairsFromFileS' "bkr.conf"
+     confPairs <- getConfFile >>= getConfPairsFromFileS' . fromJust
      let cr = Credentials (B.pack $ fromJust $ lookup "awsaccesskeyid" confPairs) (B.pack $ fromJust $ lookup "awssecretaccesskey" confPairs)
      
      return Configuration { timeInfo = Timestamp
@@ -46,4 +46,4 @@ getS3BucketName :: IO T.Text
      
 --getS3BucketName = getConfPairsFromFileS' "bkr.conf" >>= return . T.pack . fromJust . lookup "s3bucketname"
 
-getS3BucketName = liftM (T.pack . fromJust . lookup "s3bucketname") (getConfPairsFromFileS' "bkr.conf")
+getS3BucketName = liftM (T.pack . fromJust . lookup "s3bucketname") (getConfFile >>= getConfPairsFromFileS' . fromJust)
