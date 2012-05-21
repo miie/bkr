@@ -181,6 +181,7 @@ writeBkrMetaFile confPair = do
      hClose hndl
      return fullPath
 
+{-| Check if bkr.conf is passed as the first argument. We do not check if the bkr.conf file is valid, just that a file was passed as the first argument. |-}
 getArgIfValid :: IO (Maybe FilePath)
 getArgIfValid = do
      args <- getArgs
@@ -192,6 +193,7 @@ getArgIfValid = do
                      else return Nothing
           _   -> return Nothing
 
+{-| Check if there is a bkr.conf file in the same directory as the bkr executable. We do not check that the bkr.conf file is valid, only if it exists. |-}
 getBkrConfFromDot :: IO (Maybe FilePath)
 getBkrConfFromDot = do
      fileExists <- doesFileExist "./bkr.conf"
@@ -199,18 +201,20 @@ getBkrConfFromDot = do
         then return $ Just "./bkr.conf"
         else return Nothing
 
+{-| Check if there is a $HOME/.bkr.conf file. We do not check if the .bkr.conf file is valid, only if it exists. If the file cannot be found the bkr.conf.example file is copied to $HOME/.bkr.conf and the user is instructed to edit it. |-}
 getBkrFromHomeDir :: IO (Maybe FilePath)
 getBkrFromHomeDir = do
      homeDir <- getHomeDirectory
-     let filePath = (++) "/.bkr.conf" homeDir
+     let filePath = (++) homeDir "/.bkr.conf"
      fileExists <- doesFileExist filePath
      if fileExists
         then return $ Just filePath
         else do
               copyFile "./bkr.conf.example" filePath
-              logNotice $ "bkr configuration file could not be found. An example configuration file has been copied to your home directory, " ++ filePath ++ ". Please edit the configuration file and run bkr again."
+              print $ "bkr configuration file could not be found. An example configuration file has been copied to your home directory, " ++ filePath ++ ". Please edit the configuration file and run bkr again."
               return Nothing
-{-| 
+
+{-|
 Gets file path to the Bkr configuration file. File locations checked (in order):
     1. The first command line argument
     2. ./bkr.conf
@@ -232,13 +236,6 @@ getConfFile = do
                                           _      -> return Nothing
 
 getConfSetting :: String -> IO (Maybe String)
-{-
-getConfSetting key = do
-     --confPairs <- getConfPairsFromFileS' "bkr.conf"
-     --return $ getValueS key confPairs
-     getConfPairsFromFileS' "bkr.conf" >>= return . getValueS key
--}
---getConfSetting key = liftM (getValueS key) (getConfFile >>= getConfPairsFromFileS')
 getConfSetting key = do
      confFile <- getConfFile
      case confFile of
