@@ -17,3 +17,4 @@ tst.txt
 src/Main
 
 dist/*
+src/notused.bkr.conf
