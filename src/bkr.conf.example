@@ -1,4 +1,23 @@
-awsaccesskeyid: <your access key id>
-awssecretaccesskey: <your secret access key>
-s3bucketname: <bucket name>
-folderstobackup: /Users/yourusername/foldertobackup
+# Provide your awsaccesskeyid, awssecretaccesskey and S3 bucket name (the bucket needs to already be created, Bkr will not create a bucket if it doesn't exist).
+awsaccesskeyid: <your awsaccesskeyid>
+awssecretaccesskey: <your awssecretaccesskey>
+s3bucketname: <your s3bucketname>
+
+# Provide the folder to backup and any folders, file types (by file extension) and files you don't want to backup
+folderstobackup: <comma separated list of folders to backup, for instance: folderstobackup: /Users/username/foldertobackup0, /Users/username/foldertobackup1>
+folderstoignore: <comma separated list of folders not to backup, for instance: folderstoignore: /Users/username/foldertobackup0/donotbackup>
+fileextensionstoignore: <comma separated list of file types not to backup, for instance: fileextensionstoignore: .txt, .ppt, pptx
+filestoignore: <comma separated list of files not to backup, for instance: filestoignore: .DS_Store, .localized>
+
+# Use S3 reduced redundancy (yes or no). Please read http://aws.amazon.com/s3/faqs/#What_is_RRS for more information but if the data you are backing up is critical choose no.
+uses3reducedredundancy: no
+
+# File update check algorithm. There are three ways Bkr can determine if a uploaded (backed up) file is the same as a local file or if the local file has been updated. By checksum (safest but slowest), by change date (fastest and safe if you trust you filesystem time stamps) and smart (checksum is guaranteed to be checked every tenth run but the chance of the checksum beeing checked gets 10% higher for every run). Valid choices are: checksum (not recommended unless you need to be sure that the uploaded and local files are the same, will be slow for many and big files), date (recommended if you trust your filesystem timestamps) and smart (the recommended level)
+#fileupdatecheck: checksum
+fileupdatecheck: smart
+#fileupdatecheck: date
+
+# Valid log levels are: debug (verbose logginig), notify (notifications and errors, the recommended level), critical (only errors)
+loglevel: debug
+#loglevel: notify
+#loglevel: critical
