@@ -48,7 +48,6 @@ getBkrObjectKeys gbMarker objList = do
      
      -- Get bucket info with simpleAwsRef. S3.getBucket returns a GetBucketResponse object.
      bucketName <- getS3BucketName
-     --s3BkrBucket <- Aws.simpleAwsRef cfg metadataRef $ S3.GetBucket bucketName Nothing (Just gbMarker) Nothing (Just $ T.pack "bkrm")
      s3BkrBucket <- Aws.simpleAwsRef cfg metadataRef S3.GetBucket { S3.gbBucket    = bucketName
                                                                   , S3.gbDelimiter = Nothing
                                                                   , S3.gbMarker    = Just gbMarker
@@ -64,13 +63,11 @@ getBkrObjectKeys gbMarker objList = do
 
      -- Get bucket contents with gbrContents. gbrContents gets [ObjectInfo]
      let bkrBucketContents = S3.gbrContents s3BkrBucket
-     --print $ show $ length bkrBucketContents
-     --print $ show contents
      
      -- Get object keys (the bkr object filenames)
      let objects = map S3.objectKey bkrBucketContents
-     --print $ show $ head objects
-     -- S3 is limited to fetch 1000 objects so make sure 
+
+     -- S3 is limited to fetch 1000 objects so make sure that we get all objects
      if length objects > 999
         then getBkrObjectKeys (last objects) (objList ++ objects)
         else return $ objList ++ objects
@@ -80,14 +77,8 @@ getBkrObjects = do
           
      objectKeys <- getBkrObjectKeys (T.pack "") []
      logNotice $ "Got " ++ show (length objectKeys) ++ " objects from S3"
-     --bkrObjects <- getBkrObject objectKeys
-     --return bkrObjects
-     return $ map getMetaKeys objectKeys
 
-{-
-splitObject :: String -> [T.Text]
-splitObject s = T.split (=='.') (T.pack s)
--}
+     return $ map getMetaKeys objectKeys
 
 getMetaKeys :: T.Text -> BkrMeta
 getMetaKeys key = BkrMeta { fullPath                 = "" 
@@ -97,7 +88,85 @@ getMetaKeys key = BkrMeta { fullPath                 = ""
                           , modificationTimeChecksum = ""
                           }
                           where kSplit = T.split (=='.') key
-                               
+
+putBackupFile :: FilePath -> IO ()
+putBackupFile filePath = do
+        
+     let uploadName = T.pack $ show (getHashForString filePath) ++ "::" ++ takeFileName filePath
+     -- Get MD5 hash for file
+     --contentMD5 <- getFileHash path
+     --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
+     putFile filePath uploadName Nothing 0
+
+putBkrMetaFile :: FilePath -> IO ()
+putBkrMetaFile filePath = do
+
+     let uploadName = T.pack $ "bkrm." ++ takeFileName filePath
+     -- Get MD5 hash for file
+     --contentMD5 <- getFileHash path
+     --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
+     putFile filePath uploadName Nothing 0
+
+{-| Upload file to S3. putFile will handle a failed attempt to upload the file by waiting 60 seconds and then retrying. If this fails five times it will raise an IO Error.
+|-}
+putFile :: FilePath -> T.Text -> Maybe B.ByteString -> Int -> IO ()
+putFile filePath uploadName contentMD5 noOfRetries =
+     putFile' filePath uploadName contentMD5 `C.catch` \ (ex :: C.SomeException) ->
+              if noOfRetries > 5
+                 then ioError $ userError $ "Failed to upload file " ++ filePath
+                 else do
+                      logCritical $ "putFile: got exception: " ++ show ex
+                      logCritical "Wait 60 sec then try again"
+                      threadDelay $ 60 * 1000000
+                      putFile filePath uploadName contentMD5 (noOfRetries + 1)
+
+putFile' :: FilePath -> T.Text -> Maybe B.ByteString -> IO ()
+putFile' filePath uploadName contentMD5 = do
+     
+     -- Get S3 config
+     cfg <- getS3Config
+
+     -- Create an IORef to store the response Metadata (so it is also available in case of an error).
+     metadataRef <- newIORef mempty
+     
+     -- TODO: change to read the file lazy and upload using RequestBodyLBS ...or maybe no, we probably don't gain anything from doing this lazy
+     --hndl <- openBinaryFile path ReadMode
+     --fileContents <- LB.hGetContents hndl
+     --Aws.simpleAwsRef cfg metadataRef $ S3.putObject uploadName getS3BucketName (RequestBodyLBS $ fileContents)
+     fileContents <- B.readFile filePath
+
+     -- Get bucket name
+     bucketName <- getS3BucketName
+     
+     -- Check if we should use reduced redundancy
+     useReducedRedundancy <- getUseS3ReducedRedundancy
+     
+     -- Replace space with underscore in the upload name (S3 does not handle blanks in object names). Doing this is safe since the whole original path is stored in the meta file.
+     logDebug ("putFile: will upload file " ++ filePath)
+     _ <- Aws.simpleAwsRef cfg metadataRef S3.PutObject { S3.poObjectName          = T.replace " " "_" uploadName 
+                                                   , S3.poBucket              = bucketName
+                                                   , S3.poContentType         = Nothing
+                                                   , S3.poCacheControl        = Nothing
+                                                   , S3.poContentDisposition  = Nothing
+                                                   , S3.poContentEncoding     = Nothing
+                                                   , S3.poContentMD5          = contentMD5
+                                                   , S3.poExpires             = Nothing
+                                                   , S3.poAcl                 = Nothing
+                                                   , S3.poStorageClass        = useReducedRedundancy
+                                                   , S3.poRequestBody         = RequestBodyBS fileContents 
+                                                   , S3.poMetadata            = []
+                                                   }
+     logDebug "putFile: upload done"
+
+     -- If lazy upload, close the handle
+     --logDebug "putFile: close file handle"
+     --hClose hndl
+     
+     -- Log the response metadata.
+     --ioResponseMetaData <- readIORef metadataRef
+     --logDebug $ "putFile: response metadata: " ++ (show ioResponseMetaData)
+     readIORef metadataRef >>= logDebug . ("putFile: response metadata: " ++) . show
+
 {-
 {-| Deprecated -}
 getBkrObjectsOld :: IO [BkrMeta]
@@ -226,81 +295,7 @@ getBkrObject' fileNames = do
         return [BkrMeta path_ checksum_ (show $ getHashForString path_) modificationTime_ modificationTimeChecksum_]
      return (concat objects)
 -}
-
-putBackupFile :: FilePath -> IO ()
-putBackupFile filePath = do
-        
-     let uploadName = T.pack $ show (getHashForString filePath) ++ "::" ++ takeFileName filePath
-     -- Get MD5 hash for file
-     --contentMD5 <- getFileHash path
-     --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
-     putFile filePath uploadName Nothing 0
-
-putBkrMetaFile :: FilePath -> IO ()
-putBkrMetaFile filePath = do
-
-     let uploadName = T.pack $ "bkrm." ++ takeFileName filePath
-     -- Get MD5 hash for file
-     --contentMD5 <- getFileHash path
-     --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
-     putFile filePath uploadName Nothing 0
-
-{-| Upload file to S3. putFile will handle a failed attempt to upload the file by waiting 60 seconds and then retrying. If this fails five times it will raise an IO Error.
-|-}
-putFile :: FilePath -> T.Text -> Maybe B.ByteString -> Int -> IO ()
-putFile filePath uploadName contentMD5 noOfRetries =
-     putFile' filePath uploadName contentMD5 `C.catch` \ (ex :: C.SomeException) ->
-              if noOfRetries > 5
-                 then ioError $ userError $ "Failed to upload file " ++ filePath
-                 else do
-                      logCritical $ "putFile: got exception: " ++ show ex
-                      logCritical "Wait 60 sec then try again"
-                      threadDelay $ 60 * 1000000
-                      putFile filePath uploadName contentMD5 (noOfRetries + 1)
-
-putFile' :: FilePath -> T.Text -> Maybe B.ByteString -> IO ()
-putFile' filePath uploadName contentMD5 = do
-     
-     -- Get S3 config
-     cfg <- getS3Config
-
-     -- Create an IORef to store the response Metadata (so it is also available in case of an error).
-     metadataRef <- newIORef mempty
-     
-     -- TODO: change to read the file lazy and upload using RequestBodyLBS ...or maybe no, we probably don't gain anything from doing this lazy
-     --hndl <- openBinaryFile path ReadMode
-     --fileContents <- LB.hGetContents hndl
-     --Aws.simpleAwsRef cfg metadataRef $ S3.putObject uploadName getS3BucketName (RequestBodyLBS $ fileContents)
-     fileContents <- B.readFile filePath
-
-     -- Get bucket name
-     bucketName <- getS3BucketName
-     
-     -- Check if we should use reduced redundancy
-     useReducedRedundancy <- getUseS3ReducedRedundancy
-     
-     -- Replace space with underscore in the upload name (S3 does not handle blanks in object names). Doing this is safe since the whole original path is stored in the meta file.
-     logDebug ("putFile: will upload file " ++ filePath)
-     _ <- Aws.simpleAwsRef cfg metadataRef S3.PutObject { S3.poObjectName          = T.replace " " "_" uploadName 
-                                                   , S3.poBucket              = bucketName
-                                                   , S3.poContentType         = Nothing
-                                                   , S3.poCacheControl        = Nothing
-                                                   , S3.poContentDisposition  = Nothing
-                                                   , S3.poContentEncoding     = Nothing
-                                                   , S3.poContentMD5          = contentMD5
-                                                   , S3.poExpires             = Nothing
-                                                   , S3.poAcl                 = Nothing
-                                                   , S3.poStorageClass        = useReducedRedundancy
-                                                   , S3.poRequestBody         = RequestBodyBS fileContents 
-                                                   , S3.poMetadata            = []
-                                                   }
-     logDebug "putFile: upload done"
-
-     -- If lazy upload, close the handle
-     --logDebug "putFile: close file handle"
-     --hClose hndl
-     
-     -- Log the response metadata.
-     --ioResponseMetaData <- readIORef metadataRef
-     --logDebug $ "putFile: response metadata: " ++ (show ioResponseMetaData)
-     readIORef metadataRef >>= logDebug . ("putFile: response metadata: " ++) . show
+{-
+splitObject :: String -> [T.Text]
+splitObject s = T.split (=='.') (T.pack s)
+-}
