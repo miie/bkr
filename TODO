@@ -4,15 +4,16 @@ Done - files not to backup in conf
 Done - file types no to back in conf
 Done - folders not to back in conf
 Done - multiple folders to back
-- cabal file + project dir structure
+Done - cabal file + project dir structure
 Done - use BkrMetaCheck from object name from getBucket for more optimized check which files should be uploaded
 Done - cache local checksums for BkrMeta for a more optimized check which files should be uploaded
 - add "sync mode" - synchronize the online content with local, removing items online that does not exist locally any more
 Done - Set debug level in conf
 - Handle gracefully if not permitted to write .bkrmeta file
 - Update uploaded file settings, like use S3 reduced redundancy
-- read bkr.config from:
+Done - read bkr.config from:
   1. command line setting
   2. user home dir
   3. ./bkr.conf
   4. give a valid error
+- Check that bkr.conf is valid
