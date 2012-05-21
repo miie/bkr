@@ -8,6 +8,7 @@ module Bkr.BkrConfig ( FileUpdateCheckType(..)
                      , getConfPairsFromFileS'
                      , getConfPairsFromByteString
                      , getConfPairsFromByteString'
+                     , getConfFile
                      , writeBkrMetaFile
                      , getValue
                      , getValueS
@@ -24,11 +25,13 @@ import Bkr.BkrLogging
 import Bkr.Hasher
 
 import System.IO
-import System.Directory (getTemporaryDirectory, getModificationTime)
+import System.Directory (getTemporaryDirectory, getModificationTime, doesFileExist, getHomeDirectory, copyFile)
 import Control.Monad (liftM)
 import Data.String.Utils (split, strip)
 import Aws.S3.Model (StorageClass(..))
 import System.Log.Logger (Priority(..))
+import System (getArgs)
+
 import qualified System.IO.Strict as S
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Text as T
@@ -178,6 +181,56 @@ writeBkrMetaFile confPair = do
      hClose hndl
      return fullPath
 
+getArgIfValid :: IO (Maybe FilePath)
+getArgIfValid = do
+     args <- getArgs
+     case args of
+          [x] -> do
+                  fileExists <- doesFileExist x
+                  if fileExists
+                     then return $ Just x
+                     else return Nothing
+          _   -> return Nothing
+
+getBkrConfFromDot :: IO (Maybe FilePath)
+getBkrConfFromDot = do
+     fileExists <- doesFileExist "./bkr.conf"
+     if fileExists
+        then return $ Just "./bkr.conf"
+        else return Nothing
+
+getBkrFromHomeDir :: IO (Maybe FilePath)
+getBkrFromHomeDir = do
+     homeDir <- getHomeDirectory
+     let filePath = (++) "/.bkr.conf" homeDir
+     fileExists <- doesFileExist filePath
+     if fileExists
+        then return $ Just filePath
+        else do
+              copyFile "./bkr.conf.example" filePath
+              logNotice $ "bkr configuration file could not be found. An example configuration file has been copied to your home directory, " ++ filePath ++ ". Please edit the configuration file and run bkr again."
+              return Nothing
+{-| 
+Gets file path to the Bkr configuration file. File locations checked (in order):
+    1. The first command line argument
+    2. ./bkr.conf
+    3. $HOME/.bkr.conf
+|-}
+getConfFile :: IO (Maybe FilePath)
+getConfFile = do
+     argIfValid <- getArgIfValid
+     case argIfValid of
+          Just x -> return $ Just x
+          _      -> do
+                     bkrFromDot <- getBkrConfFromDot
+                     case bkrFromDot of
+                          Just x -> return $ Just x
+                          _      -> do
+                                     bkrFromHome <- getBkrFromHomeDir
+                                     case bkrFromHome of
+                                          Just x -> return $ Just x
+                                          _      -> return Nothing
+
 getConfSetting :: String -> IO (Maybe String)
 {-
 getConfSetting key = do
@@ -185,7 +238,12 @@ getConfSetting key = do
      --return $ getValueS key confPairs
      getConfPairsFromFileS' "bkr.conf" >>= return . getValueS key
 -}
-getConfSetting key = liftM (getValueS key) (getConfPairsFromFileS' "bkr.conf")
+--getConfSetting key = liftM (getValueS key) (getConfFile >>= getConfPairsFromFileS')
+getConfSetting key = do
+     confFile <- getConfFile
+     case confFile of
+          Just x   -> liftM (getValueS key) (getConfPairsFromFileS' x)
+          Nothing  -> return Nothing
 
 {-| Get a list of the folders to back up. If the setting cannot be found an IO Error is raised. |-}
 getBackupFolders :: IO [FilePath]

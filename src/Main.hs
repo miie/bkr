@@ -6,6 +6,7 @@ import qualified Bkr.BkrLocalFile as F
 import qualified Bkr.TargetServices.S3.BkrS3Bucket as S3B
 
 import System.Directory (removeFile)
+--import Data.Global (declareIORef)
 --import List (filter, zip3, concat)
 --import Control.Monad (mapM, forM)
 --import Data.Maybe (fromJust)
@@ -15,9 +16,14 @@ import System.Directory (removeFile)
 
 main :: IO ()
 main = do
+     -- Check for valid configuration file. If valid configuration file is found set up logging and continue
+     confFile <- getConfFile
+     case confFile of
+          Nothing -> return ()
+          Just _  -> getLogLevel >>= setupLogging --declareIORef "bkr-conf-file-path" x
      
      -- Set up logging
-     getLogLevel >>= setupLogging
+     --getLogLevel >>= setupLogging
   
      logNotice "Bkr started"
      
