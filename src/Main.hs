@@ -6,6 +6,8 @@ import qualified Bkr.BkrLocalFile as F
 import qualified Bkr.TargetServices.S3.BkrS3Bucket as S3B
 
 import System.Directory (removeFile)
+import Control.Monad (when)
+import Data.Maybe (isNothing)
 --import Data.Global (declareIORef)
 --import List (filter, zip3, concat)
 --import Control.Monad (mapM, forM)
@@ -16,15 +18,13 @@ import System.Directory (removeFile)
 
 main :: IO ()
 main = do
-     -- Check for valid configuration file. If valid configuration file is found set up logging and continue
+     
+     -- Check for valid configuration file and return () if it cannot be found (error message is shown by getConfFile).
      confFile <- getConfFile
-     case confFile of
-          Nothing -> return ()
-          Just _  -> getLogLevel >>= setupLogging --declareIORef "bkr-conf-file-path" x
+     when (isNothing confFile) (return ())
      
      -- Set up logging
-     --getLogLevel >>= setupLogging
-  
+     getLogLevel >>= setupLogging
      logNotice "Bkr started"
      
      -- Get BkrMeta objects from S3
@@ -42,8 +42,7 @@ main = do
      let objToUpload = filter (`notElem` bkrS3Meta) bkrLocalMeta
      -- Create a list with a triple (bkrObj, no of bkrObj, nth bkrObj) to use as a counter
      let len = length objToUpload
-     --let counterList = zip3 objToUpload [len | x <- [1..]] [1..] -- We can use non ending lists since zip ends when the shortest (objToUpload) list ends. Got to love this lazy stuff.
-     let counterList = zip3 objToUpload [len] [1..] -- We can use non ending lists since zip ends when the shortest (objToUpload) list ends. Got to love this lazy stuff.
+     let counterList = zip3 objToUpload [len | _ <- [(1 :: Int)..]] [1..] -- We can use non ending lists since zip ends when the shortest (objToUpload) list ends. Got to love this lazy stuff.
      logNotice $ show len ++ " files will be uploaded"
      -- For each element in objToUpload upload the local file then create a .bkrm file and upload it
      _ <- mapM putFiles counterList

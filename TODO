@@ -17,3 +17,5 @@ Done - read bkr.config from:
   3. ./bkr.conf
   4. give a valid error
 - Check that bkr.conf is valid
+Done - Handle location of the log file
+- Handle if we cannot write to the log file (or if getLogFileLocation passes Nothing)

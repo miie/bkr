@@ -19,18 +19,22 @@ module Bkr.BkrConfig ( FileUpdateCheckType(..)
                      , getUseS3ReducedRedundancy
                      , getLogLevel
                      , getFileUpdateCheckType
+                     , getLogFileLocation
+                     , getLogFileMaximumSize
                      ) where
 
-import Bkr.BkrLogging
+--import Bkr.BkrLogging
 import Bkr.Hasher
 
 import System.IO
-import System.Directory (getTemporaryDirectory, getModificationTime, doesFileExist, getHomeDirectory, copyFile)
+import System.Directory (getTemporaryDirectory, getModificationTime, doesFileExist, getHomeDirectory, copyFile, getTemporaryDirectory, getAppUserDataDirectory, createDirectoryIfMissing)
+import System.FilePath.Posix (takeDirectory)
 import Control.Monad (liftM)
-import Data.String.Utils (split, strip)
+import Data.String.Utils (split, strip, replace)
 import Aws.S3.Model (StorageClass(..))
 import System.Log.Logger (Priority(..))
 import System (getArgs)
+--import Data.Maybe (isNothing, fromJust)
 
 import qualified System.IO.Strict as S
 import qualified Data.ByteString.Char8 as BS
@@ -57,7 +61,7 @@ Gets configuration pairs. This function takes a FilePath and reads the file lazy
 |-}
 getConfPairsFromFile :: FilePath -> IO [(T.Text, T.Text)]
 getConfPairsFromFile path = do
-     logDebug "getConfPairsFromFile called"
+     --logDebug "getConfPairsFromFile called"
      -- Read the config file, split into lines and pack as Text
      hndl <- openBinaryFile path ReadMode
      readF <- hGetContents hndl
@@ -68,8 +72,8 @@ getConfPairsFromFile path = do
 
 {-| Like getConfPairsFromFile but gets a String pair instead of Text. |-}
 getConfPairsFromFile' :: FilePath -> IO [(String, String)]
-getConfPairsFromFile' path = do
-     logDebug "getConfPairsFromFile' called"
+getConfPairsFromFile' path = --do
+     --logDebug "getConfPairsFromFile' called"
      
      --pairs <- getConfPairsFromFile path
      --return $ map textToString pairs
@@ -78,7 +82,7 @@ getConfPairsFromFile' path = do
 {-| Like getConfPairsFromFile but takes a file handle instead of FilePath. |-}
 getConfPairsFromFile_ :: Handle -> IO [(T.Text, T.Text)]
 getConfPairsFromFile_ hndl = do
-     logDebug "getConfPairsFromFile_ called"
+     --logDebug "getConfPairsFromFile_ called"
      -- Read the config file, split into lines and pack as Text
      readF <- hGetContents hndl
 
@@ -86,8 +90,8 @@ getConfPairsFromFile_ hndl = do
 
 {-| Like getConfPairsFromFile' but takes a file handle instead of FilePath. |-}
 getConfPairsFromFile_' :: Handle -> IO [(String, String)]
-getConfPairsFromFile_' hndl = do
-     logDebug "getConfPairsFromFile_' called"
+getConfPairsFromFile_' hndl = --do
+     --logDebug "getConfPairsFromFile_' called"
      
      --pairs <- getConfPairsFromFile_ hndl
      --return $ map textToString pairs
@@ -96,7 +100,7 @@ getConfPairsFromFile_' hndl = do
 {-| Like getConfPairsFromFile but reads file contents strictly. |-}
 getConfPairsFromFileS :: FilePath -> IO [(T.Text, T.Text)]
 getConfPairsFromFileS path = do
-     logDebug "getConfPairsFromFileS called"
+     --logDebug "getConfPairsFromFileS called"
      -- Read the config file, split into lines and pack as Text
      hndl <- openBinaryFile path ReadMode
      -- Read contents strictly
@@ -107,8 +111,8 @@ getConfPairsFromFileS path = do
 
 {-| Like getConfPairsFromFile' but reads file contents strictly. |-}
 getConfPairsFromFileS' :: FilePath -> IO [(String, String)]
-getConfPairsFromFileS' path = do
-     logDebug "getConfPairsFromFileS' called"
+getConfPairsFromFileS' path = --do
+     --logDebug "getConfPairsFromFileS' called"
 
      --pairs <- getConfPairsFromFileS path
      --return $ map textToString pairs
@@ -117,7 +121,7 @@ getConfPairsFromFileS' path = do
 {-| Take a ByteString text, convert to lines and return Text pairs. |-}
 getConfPairsFromByteString :: BS.ByteString -> IO [(T.Text, T.Text)]
 getConfPairsFromByteString bS = do
-     logDebug "getConfPairsFromByteString called"
+     --logDebug "getConfPairsFromByteString called"
      --let fileLines = map T.pack (lines $ BS.unpack bS)
      -- Get lines and filter lines beginning with #
      let fileLines = [ x | x <- map T.pack (lines $ BS.unpack bS), x /= T.empty, T.head (T.stripStart x) /= '#' ]
@@ -125,8 +129,8 @@ getConfPairsFromByteString bS = do
 
 {-| Like getConfPairsFromByteString but returns String. |-}
 getConfPairsFromByteString' :: BS.ByteString -> IO [(String, String)]
-getConfPairsFromByteString' bS = do
-     logDebug "getConfPairsFromByteString' called"
+getConfPairsFromByteString' bS = --do
+     --logDebug "getConfPairsFromByteString' called"
 
      --pairs <- getConfPairsFromByteString bS
      --return $ map textToString pairs
@@ -158,7 +162,7 @@ getValueS = lookup
 {-| Take a bkr conf pair and write a .bkrm file in a temporary directory. |-}
 writeBkrMetaFile :: (String, String) -> IO FilePath
 writeBkrMetaFile confPair = do
-     logDebug "writeBkrMetaFile called"
+     --logDebug "writeBkrMetaFile called"
      -- Get tmp dir
      tmpDir <- getTemporaryDirectory
      -- Get hash of the file name
@@ -234,6 +238,17 @@ getConfFile = do
                                      case bkrFromHome of
                                           Just x -> return $ Just x
                                           _      -> return Nothing
+{-getConfFile = do
+     argIfValid <- getArgIfValid
+     when ((isNothing argIfValid) == False) (return argIfValid)
+
+     bkrFromDot <- getBkrConfFromDot
+     when ((isNothing bkrFromDot) == False) (return bkrFromDot)
+
+     bkrFromHome <- getBkrFromHomeDir
+     when ((isNothing bkrFromHome) == False) (return bkrFromHome)
+     
+     return Nothing-}
 
 getConfSetting :: String -> IO (Maybe String)
 getConfSetting key = do
@@ -245,7 +260,7 @@ getConfSetting key = do
 {-| Get a list of the folders to back up. If the setting cannot be found an IO Error is raised. |-}
 getBackupFolders :: IO [FilePath]
 getBackupFolders = do
-     logDebug "getBackupFolders called"
+     --logDebug "getBackupFolders called"
 
      confSetting <- getConfSetting "folderstobackup"
      case confSetting of
@@ -255,44 +270,44 @@ getBackupFolders = do
 {-| Get a list of files to ignore. If the settings cannot be found an empty list is returned |-}
 getFilesToIgnore :: IO [FilePath]
 getFilesToIgnore = do
-     logDebug "getFilesToIgnore called"
+     --logDebug "getFilesToIgnore called"
 
      confSetting <- getConfSetting "filestoignore"
      case confSetting of
           Just x  -> return $ map strip (split "," x)
           Nothing -> do
-                  logDebug $ "getFilesToIgnore: " ++ "the setting filestoignore was not found."
+                  --logDebug $ "getFilesToIgnore: " ++ "the setting filestoignore was not found."
                   return []
 
 {-| Get a list of files to ignore be extension. If the settings cannot be found an empty list is returned |-}
 getFileExtensionsToIgnore :: IO [FilePath]
 getFileExtensionsToIgnore = do
-    logDebug "getFileExtensionsToIgnore called"
+    --logDebug "getFileExtensionsToIgnore called"
 
     confSetting <- getConfSetting "fileextensionstoignore"
     case confSetting of
          Just x  -> return $ map strip (split "," x)
          Nothing -> do
-                 logDebug $ "getFileExtensionsToIgnore: " ++ "the setting fileextensionstoignore was not found."
+                 --logDebug $ "getFileExtensionsToIgnore: " ++ "the setting fileextensionstoignore was not found."
                  return []
 
 {-| Get a list of folders to ignore. If the settings cannot be found an empty list is returned |-}
 getFoldersToIgnore :: IO [FilePath]
 getFoldersToIgnore = do
-    logDebug "getFoldersToIgnore called"
+    --logDebug "getFoldersToIgnore called"
 
     confSetting <- getConfSetting "folderstoignore"
     case confSetting of
          Just x  -> return $ map strip (split "," x)
          Nothing -> do
-                 logDebug $ "getFoldersToIgnore: " ++ "the setting folderstoignore was not found."
+                 --logDebug $ "getFoldersToIgnore: " ++ "the setting folderstoignore was not found."
                  return []
 
 {-| Get if we should use S3 reduced redundancy, if the setting cannot be found return reduced redundacy (there is not real reason not to use reduced redundancy for this kind of application.
 |-} 
 getUseS3ReducedRedundancy :: IO (Maybe StorageClass)
 getUseS3ReducedRedundancy = do
-     logDebug "getUseS3ReducedRedundancy called"
+     --logDebug "getUseS3ReducedRedundancy called"
 
      confSetting <- getConfSetting "uses3reducedredundancy"
      case confSetting of
@@ -300,7 +315,7 @@ getUseS3ReducedRedundancy = do
                        then return $ Just ReducedRedundancy
                        else return $ Just Standard
           Nothing -> do
-                  logDebug $ "getUseS3ReducedRedundancy: " ++ "the setting uses3reducedredundancy was not found."
+                  --logDebug $ "getUseS3ReducedRedundancy: " ++ "the setting uses3reducedredundancy was not found."
                   return $ Just ReducedRedundancy
 
 {-| Get the log priority and default to debug if it could not be found or is misconfigured. |-}
@@ -319,7 +334,7 @@ getLogLevel = do
 {-| Get the file update check type, default to smart if it could not be found or is misconfigured. |-}
 getFileUpdateCheckType :: IO FileUpdateCheckType
 getFileUpdateCheckType = do
-     logDebug "getFileUpdateCheckType called"
+     --logDebug "getFileUpdateCheckType called"
 
      confSetting <- getConfSetting "fileupdatecheck"
      case confSetting of
@@ -328,3 +343,34 @@ getFileUpdateCheckType = do
                          "date"     -> return FUCDate
                          _          -> return FUCSmart
           _      -> return FUCSmart
+
+{-| Get log file location. $HOME, $TMP and $APPDATA are replaced with user's home directory, system temp directory and user's application data directory respectively. If the directory is not present it's created.|-}
+getLogFileLocation :: IO (Maybe FilePath)
+getLogFileLocation = do
+     confSetting <- getConfSetting "logfilelocation"
+     case confSetting of
+          Just x -> do
+                     homeDir <- getHomeDirectory
+                     tmpDir <- getTemporaryDirectory
+                     appDir <- getAppUserDataDirectory "bkr"
+                     let logFilePath = strReplace ["$HOME", "$TMP", "$APPDATA"] [homeDir, tmpDir, appDir] x 
+
+                     createDirectoryIfMissing True (takeDirectory logFilePath)
+
+                     return $ Just $ logFilePath
+          _      -> return Nothing
+
+     where strReplace :: [String] -> [String] -> String -> String
+           strReplace (x:xs) (xR:xRs) s = strReplace xs xRs (replace x xR s)
+           strReplace _ _ s = s
+
+{-| Get log file maximum size in bytes. If the size cannot be found default to 5MB. |-}
+getLogFileMaximumSize :: IO Int
+getLogFileMaximumSize = do
+     confSetting <- getConfSetting "logfilemaximumsize"
+     case confSetting of
+          Just x -> return $ rInt x
+          _      -> return 5242880
+     
+     where rInt :: String -> Int
+           rInt = read

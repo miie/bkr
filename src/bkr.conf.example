@@ -17,6 +17,12 @@ uses3reducedredundancy: no
 fileupdatecheck: smart
 #fileupdatecheck: date
 
+# Log file location. Set a location of the log file. Default is $HOME/.bkr.log where $HOME is replaced with your home directory.
+logfilelocation: $HOME/.bkr.log
+
+# Set maximum size in bytes of the log file. The log file is rotated after the size limit is reached. Default size is 5MB
+logfilemaximumsize: 5242880
+
 # Valid log levels are: debug (verbose logginig), notify (notifications and errors, the recommended level), critical (only errors)
 loglevel: debug
 #loglevel: notify
