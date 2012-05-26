@@ -14,8 +14,6 @@ import Data.Maybe (isNothing)
 --import Data.Maybe (fromJust)
 --import Data.String.Utils (split)
 
-
-
 main :: IO ()
 main = do
      
@@ -57,6 +55,5 @@ putFiles (bkrObj, len, nthObj) = do
      S3B.putBackupFile localPath
      -- Get .bkrm file
      tmpFilePath <- writeBkrMetaFile (localPath, fileChecksum bkrObj)
-     S3B.putBkrMetaFile tmpFilePath
-     removeFile tmpFilePath
-     return ()
+     S3B.putBkrMetaFile tmpFilePath >> removeFile tmpFilePath
+     --return ()
