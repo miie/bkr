@@ -2,11 +2,20 @@
 
 * Introduction
 
-bkr is right now a personal test project creating a basic and easy to use backup utility using cloud services as backup storage.
+The goal with bkr is to create a simple and easy to use backup utility that utilizes cloud services as backup storage.
 
 ** What does bkr do?
 
 bkr only supports S3 as backend at this time. You need to have an AWS account and a S3 bucket for your backups. Set your AWS account credentials and the folder to backup in the bkr.conf file (the bkr.conf file must be in the same folder as the bkr executable). bkr pushes the wanted files to the bucket. Next time bkr runs it checks which files has not been backed up or has changed since the last backup and pushes only these files. 
+
+* Current state of bkr
+
+bkr is in a very early development stage. Currently it: 
+# is rather a synchronization then a backup service (history/versions are not supported, wanted files are uploaded and when a local file changes the new version is uploaded overwriting the existing online copy)
+# only supports Amazon S3 as backup target service
+# no restore functionality (manual restores are required)
+# almost no error handling
+# no scheduling (cron or similar is required)
 
 * Installation
 
