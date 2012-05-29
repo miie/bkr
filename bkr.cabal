@@ -12,13 +12,31 @@ author:              Michael Smietana <michael@smietana.se>
 maintainer:          Michael Smietana <michael@smietana.se>
 category:            System, Backup
 build-type:          Simple
-cabal-version:       >=1.2
+cabal-version:       >=1.6
 tested-with:         GHC == 7.0.4
 homepage:            https://github.com/ingesson/bkr
-bug-reports:         https://github.com/ingesson/bkr/issues
+bug-reports:         https://github.com/ingesson/bkr/issues   
+
+library
+  hs-source-dirs: src
+  
+  other-modules: Bkr.Hasher
+                 , Bkr.BkrConfig
+                 , Bkr.BkrFundare
+                 , Bkr.BkrLogging
+                 , Bkr.BkrLocalFile
+                 , Bkr.BkrLocalMeta
+                 , Bkr.TargetServices.S3.BkrS3Bucket
+                 , Bkr.TargetServices.S3.BkrAwsConfig
+
+  build-depends: base == 4.*
+                 , directory >= 1.1.0.0 && < 1.1.0.2
+                 , bkr
+                       
+  ghc-options: -O2 -Wall
 
 executable bkr
-  hs-source-dirs: src/
+  hs-source-dirs: src
 
   main-is: Main.hs
   
@@ -37,5 +55,11 @@ executable bkr
                  , filepath >= 1.2.0.0
                  , MissingH >= 1.0.0
                  , utf8-string >= 0.3.7
+                 , haskell98 >= 1.1.0.1
+                 , unix >= 2.4.2.0
                        
-  ghc-options: -O2 -Wall -Werror
+  ghc-options: -O2 -Wall
+
+source-repository head
+  type:     git
+  location: https://github.com/ingesson/bkr.git
