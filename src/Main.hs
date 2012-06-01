@@ -7,7 +7,7 @@ import qualified Bkr.TargetServices.S3.BkrS3Bucket as S3B
 
 import System.Directory (removeFile)
 import Control.Monad (when)
-import Data.Maybe (isNothing)
+import Data.Maybe (isNothing, fromJust)
 --import Data.Global (declareIORef)
 --import List (filter, zip3, concat)
 --import Control.Monad (mapM, forM)
@@ -18,12 +18,15 @@ main :: IO ()
 main = do
      
      -- Check for valid configuration file and return () if it cannot be found (error message is shown by getConfFile).
+     --print "will get conf file"
      confFile <- getConfFile
      when (isNothing confFile) (return ())
      
      -- Set up logging
+     --print "will set up logging"
      getLogLevel >>= setupLogging
      logNotice "Bkr started"
+     logDebug $ "Using config file " ++ (fromJust confFile)
      
      -- Get BkrMeta objects from S3
      logNotice "Getting Bkr files from S3"
