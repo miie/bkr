@@ -21,20 +21,20 @@ import Control.Exception
 --import Data.Digest.Pure.MD5 (md5, MD5Digest)
 --import qualified Data.ByteString.Lazy as L
 
-{-| Filter [FilePath] on file extension. The first argument is a list with file extensions to filter on (for example [".txt", ".doc"]) and the second a list of the file path's to filter. |-}
+{-| Filter [FilePath] on file extension. The first argument is a list with file extensions to filter on (for example [\".txt\", \".doc\"]) and the second a list of the file paths to filter. -}
 filterExt :: [FilePath] -> [FilePath] -> [FilePath]
 filterExt ignoreList = filter (\x -> takeExtensions x `notElem` ignoreList)
 
-{-| Filter [FilePath] on folders. The first argument is a list with folders to filter on (for example ["/Users/username/donotbackup", "/Users/username/donotbackupeither"] and the second a list of the file path's to filter. |-}
+{-| Filter [FilePath] on folders. The first argument is a list with folders to filter on (for example [\"/Users/username/donotbackup\", \"/Users/username/donotbackupeither\"] and the second a list of the file paths to filter. -}
 filterFolder :: [FilePath] -> [FilePath] -> [FilePath]
 filterFolder ignoreList = filter (\x -> takeDirectory x `notElem` ignoreList)
 
-{-| Filter [FilePath] on files. The first argument is a list with files to filter on (for example ["donotbackup", "donotbackupeither"] and the second a list of the file path's to filter. |-}
+{-| Filter [FilePath] on files. The first argument is a list with files to filter on (for example [\"donotbackup\", \"donotbackupeither\"] and the second a list of the file paths to filter. -}
 filterFile :: [FilePath] -> [FilePath] -> [FilePath]
 --filterFile ignoreList = filter (\x -> x `notElem` ignoreList)
 filterFile ignoreList = filter (`notElem` ignoreList)
 
-{-| Handle IOException. Check if the passed FilePath is a file and return [FilePath] if it is and [] if not. Used, for instance, if you want to make sure that you don't miss a file if FilePath passed to getDirectoryContents is a file. |-}
+{-| Handle IOException. Check if the passed FilePath is a file and return [FilePath] if it is and [] if not. Used, for instance, if you want to make sure that you don't miss a file if FilePath passed to getDirectoryContents is a file. -}
 handleIOReturnIfFile :: IOException -> FilePath -> IO [FilePath]
 handleIOReturnIfFile _ path = do
      pathIsFile <- doesFileExist path
@@ -42,14 +42,14 @@ handleIOReturnIfFile _ path = do
         then return [path]
         else return []
 
-{-| Get files to ignore from bkr.conf and add some default files that always should be ignored. |-}
+{-| Get files to ignore from bkr.conf and add some default files that always should be ignored. -}
 getFilesToFilter :: IO [FilePath]
 getFilesToFilter = --do
      --filesToFilter <- getFilesToIgnore
      --return $ [".", "..", ".bkrmeta"] ++ filesToIgnore
      getFilesToIgnore >>= return . (++) [".", "..", ".bkrmeta"]
 
-{-| Get all files for a given folder filtered on file extension and files to ignore. |-}
+{-| Get all files for a given folder filtered on file extension and files to ignore. -}
 getFilesInFolder :: FilePath -> IO [FilePath]
 getFilesInFolder path = do
      names <- getDirectoryContents path `catch` \ (ex :: IOException) -> handleIOReturnIfFile ex path
@@ -60,7 +60,7 @@ getFilesInFolder path = do
      -- Map files with topPath to get full path and filter on files
      filterM doesFileExist (map (path </>) properNames)
 
-{-| Get all folders for a given path filtered on folders to ignore. |-}
+{-| Get all folders for a given path filtered on folders to ignore. -}
 getAllFolders :: FilePath -> IO [FilePath]
 getAllFolders topPath = do
      names <- getDirectoryContents topPath `catch` \ (_ :: IOException) -> return []
@@ -72,7 +72,7 @@ getAllFolders topPath = do
 
      return $ map normalise (concat allFolders ++ folders)
 
-{-| Get a BkrMeta for only path and modification time that can be used with BkrMeta_ for Eq on path and modification time checksum |-}
+{-| Get a BkrMeta for only path and modification time that can be used with BkrMeta_ for Eq on path and modification time checksum. -}
 getBkrMeta_ :: FilePath -> IO BkrMeta
 getBkrMeta_ path = do
      modTime <- getModificationTime path
@@ -82,7 +82,7 @@ getBkrMeta_ path = do
 Get file update check type:
     checksum -> do not check .bkrmeta files
     date and smart -> pass type to getLocalMeta 
-|-}
+-}
 getCachedBkrMetaList :: FilePath -> IO [BkrMeta]
 getCachedBkrMetaList dotbkrmetaFile = do
      updateFileCheck <- getFileUpdateCheckType
@@ -100,9 +100,9 @@ getCachedBkrMetaList dotbkrmetaFile = do
 For given FilePath:
     - Get all BkrMeta objects from .bkrmeta (if it exists)
     - Check if the .bkrmeta objects are valid or should be updated according to file update check type (see getCachedBkrMetaList)
-    - Update .bkrmeta by inserting new and updated objects and deleting objects for files that have beed deleted
+    - Update .bkrmeta by inserting new and updated objects and deleting objects for files that have been deleted
     - Return all BkrMeta objects for the given FilePath
-|-}
+-}
 folderCompareAndGetBkrMeta :: FilePath -> IO [BkrMeta]
 folderCompareAndGetBkrMeta path = do
      let dotbkrmetaFile = path ++ "/.bkrmeta"
@@ -132,7 +132,7 @@ folderCompareAndGetBkrMeta path = do
      -- Return cached and not cached BkrMeta objects
      return $ notCachedBkrMeta ++ cachedBkrMetaList
 
-{-| Get all BkrMeta objects for a list of folders using .bkrmeta cached objects according to the bkr.conf fileupdatecheck setting. |-}
+{-| Get all BkrMeta objects for a list of folders using .bkrmeta cached objects according to the bkr.conf fileupdatecheck setting. -}
 getBkrMetaForLocalPaths :: [FilePath] -> IO [BkrMeta]
 getBkrMetaForLocalPaths paths = do
      allPaths <- mapM getAllFolders paths
