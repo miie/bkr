@@ -23,7 +23,7 @@ import Control.Monad (filterM)
 
 -- db convenience functions --
 
-{-| Convenience function for getting a db connection. |-}
+{-| Convenience function for getting a db connection. -}
 getConn :: FilePath -> IO SL.Connection
 getConn path = do
      logDebug $ "getSqliteConnection: getting conn for path: " ++ path
@@ -31,15 +31,15 @@ getConn path = do
      -- Try usong connectSqlite3 and connectSqlite3Raw if that fails (file system unicode support workaround for OS X)
      SL.connectSqlite3 path `catch` \ (_ :: SqlError) -> SL.connectSqlite3Raw path
 
-{-| Convenience function for disconnection a db connection. |-}
+{-| Convenience function for disconnection a db connection. -}
 doDisconnect :: IConnection conn => conn -> IO ()
 doDisconnect conn = logDebug "doDisconnect called" >> disconnect conn
 
-{-| Convenience function for commiting a ongoing transaction. |-}
+{-| Convenience function for committing a ongoing transaction. -}
 doCommit :: IConnection conn => conn -> IO ()
 doCommit conn = logDebug "doCommit called" >> commit conn
 
-{-| Convenience function for rolling back a transaction. |-}
+{-| Convenience function for rolling back a transaction. -}
 doRollback :: IConnection conn => conn -> IO ()
 doRollback conn = logDebug "doRollback called" >> rollback conn
 
@@ -47,9 +47,9 @@ doRollback conn = logDebug "doRollback called" >> rollback conn
 
 Use as:
 @
-set "/path/to/db/file.db" "INSERT INTO table VALUES (?, ?)" [[toSql (1 :: Int), toSql ("text" :: String)],[toSql (2 :: Int), SqlNull]]
+set \"/path/to/db/file.db\" \"INSERT INTO table VALUES (?, ?)\" [[toSql (1 :: Int), toSql (\"text\" :: String)], [toSql (2 :: Int), SqlNull]]
 @
-|-}
+-}
 set :: FilePath -> String -> [[SqlValue]] -> IO ()
 set dbFilePath query values = do 
      logDebug $ "set: called with query: " ++ query -- ++ "\nvalues: " ++ (show values)
@@ -67,7 +67,7 @@ set dbFilePath query values = do
 
 -- End db convenience functions --
 
-{-| Created a .bkrmeta db file and inserts the bkrmeta table. |-}
+{-| Created a .bkrmeta db file and inserts the bkrmeta table. -}
 setTable :: FilePath -> IO ()
 setTable dbFilePath = do
      logDebug $ "setTable: called for path: " ++ dbFilePath
@@ -75,8 +75,7 @@ setTable dbFilePath = do
      let query = "CREATE TABLE IF NOT EXISTS bkrmeta (pathchecksum TEXT PRIMARY KEY, fullpath TEXT NOT NULL, filechecksum TEXT NOT NULL, filemodtimechecksum TEXT NOT NULL, filemodtime TEXT, nogets INTEGER)"
      set dbFilePath query [[]]
 
-{-| Filter function that gets a random number between 0-9 and checks if the number is larger then noGets. If larger returns IO True (object is read from the local db) and if smaller the object is deleted from the local db (insertBkrMeta will insert the object).
-|-}
+{-| Filter function that gets a random number between 0-9 and checks if the number is larger then noGets. If larger returns IO True (object is read from the local db) and if smaller the object is deleted from the local db (insertBkrMeta will insert the object). -}
 objUpdateFilter :: IConnection conn => conn -> [SqlValue] -> IO Bool
 --objUpdateFilter conn [pathChecksum, fullPath, fileChecksum, fileModTime, fileModChecksum, noGets] = do
 objUpdateFilter conn [pathChecksum_, fullPath_, _, _, _, noGets_] = do
@@ -94,8 +93,7 @@ objUpdateFilter conn [pathChecksum_, fullPath_, _, _, _, noGets_] = do
      where noGets_' = fromSql noGets_ :: Int
 objUpdateFilter _ _ = error "Failed to match expected pattern"
 
-{-| Gets BkrMeta objects from a .bkrmeta db file. getLocalMeta increments nogets every time it's called and it filters objects with objUpdateFilter.
-|-}
+{-| Gets BkrMeta objects from a .bkrmeta db file. getLocalMeta increments nogets every time it's called and it filters objects with objUpdateFilter. -}
 getLocalMeta :: FileUpdateCheckType -> FilePath -> IO [BkrMeta]
 getLocalMeta fileUpdateCheckType dbFilePath = do
      logDebug $ "getLocalMeta: called for path: " ++ dbFilePath
@@ -136,7 +134,7 @@ getLocalMeta fileUpdateCheckType dbFilePath = do
                          fileModHash = fromSql fileModChecksum_ :: String
            convRow _ = error "Failed to match expected pattern"
 
-{-| Checks if bkrmeta table exists and inserts it if it doesn't. |-}
+{-| Checks if bkrmeta table exists and inserts it if it doesn't. -}
 setTableIfNeeded :: FilePath -> IO ()
 setTableIfNeeded dbFilePath = do
      logDebug $ "setTableIfNeeded: called for path: " ++ dbFilePath
@@ -153,7 +151,7 @@ setTableIfNeeded dbFilePath = do
                    doDisconnect conn
                    setTable dbFilePath)
 
-{-| Inserts BkrMeta objects into a .bkrmeta db file. |-}
+{-| Inserts BkrMeta objects into a .bkrmeta db file. -}
 insertBkrMeta :: FilePath -> [BkrMeta] -> IO ()
 insertBkrMeta dbFilePath bkrMetaList = do
      logDebug $ "insertBkrMeta: called for path: " ++ dbFilePath
@@ -172,7 +170,7 @@ insertBkrMeta dbFilePath bkrMetaList = do
                                  toSql (modificationTime bkrMeta :: String), 
                                  toSql (0 :: Int)]
 
-{-| Delete BkrMeta objects from a .bkrmeta file. |-}
+{-| Delete BkrMeta objects from a .bkrmeta file. -}
 deleteBkrMeta :: FilePath -> [BkrMeta] -> IO ()
 deleteBkrMeta dbFilePath bkrMetaList = do
      logDebug $ "deleteBkrMeta: called for path: " ++ show dbFilePath
