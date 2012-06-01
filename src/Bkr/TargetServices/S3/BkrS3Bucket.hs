@@ -48,12 +48,15 @@ getBkrObjectKeys gbMarker objList = do
      
      -- Get bucket info with simpleAwsRef. S3.getBucket returns a GetBucketResponse object.
      bucketName <- getS3BucketName
+     -- add catch S3Error and print check aws settings. 
      s3BkrBucket <- Aws.simpleAwsRef cfg metadataRef S3.GetBucket { S3.gbBucket    = bucketName
                                                                   , S3.gbDelimiter = Nothing
                                                                   , S3.gbMarker    = Just gbMarker
                                                                   , S3.gbMaxKeys   = Nothing
                                                                   , S3.gbPrefix    = Just $ T.pack "bkrm"
-                                                                  }
+                                                                  } `C.catch` \ (ex :: C.SomeException) -> do
+                                                                  logCritical "Failed to get objects from the S3 bucket, please check that your S3 credentials in the bkr configuration file are set correctly. The error was:"
+                                                                  C.throwIO ex
      
      -- Print the response metadata.
      --print =<< readIORef metadataRef
