@@ -33,7 +33,7 @@ import Control.Monad (liftM)
 import Data.String.Utils (split, strip, replace)
 import Aws.S3.Model (StorageClass(..))
 import System.Log.Logger (Priority(..))
-import System (getArgs)
+import System.Environment (getArgs)
 --import Data.Maybe (isNothing, fromJust)
 
 import qualified System.IO.Strict as S
@@ -52,13 +52,11 @@ data FileUpdateCheckType = FUCChecksum
                          | FUCSmart
                          deriving Eq
 
-{-| Read lines from s and filter on empty lines and lines beginning with # |-}
+{-| Read lines from s and filter on empty lines and lines beginning with # -}
 getFilteredLines :: String -> [T.Text]
 getFilteredLines s = [ x | x <- map T.pack (lines s), x /= T.empty, T.head (T.stripStart x) /= '#' ]
 
-{-| TODO: add better description!
-Gets configuration pairs. This function takes a FilePath and reads the file lazy which might lead to unexpected consequences. If you want to have more control over the file handle use getConfPairsFromFile_ and if you want the file to be read strictly without the unwanted (or wanted) lazines side effects use getConfPairsFromFileS. 
-|-}
+{-| Gets configuration pairs. This function takes a FilePath and reads the file lazy which might lead to unexpected consequences. If you want to have more control over the file handle use getConfPairsFromFile_ and if you want the file to be read strictly without the unwanted (or wanted) lazines side effects use getConfPairsFromFileS. -}
 getConfPairsFromFile :: FilePath -> IO [(T.Text, T.Text)]
 getConfPairsFromFile path = do
      --logDebug "getConfPairsFromFile called"
@@ -70,7 +68,7 @@ getConfPairsFromFile path = do
      --return $ map getConfPair (getFilteredLines readF)
      return $ getConfPair `map` getFilteredLines readF
 
-{-| Like getConfPairsFromFile but gets a String pair instead of Text. |-}
+{-| Like getConfPairsFromFile but gets a String pair instead of Text. -}
 getConfPairsFromFile' :: FilePath -> IO [(String, String)]
 getConfPairsFromFile' path = --do
      --logDebug "getConfPairsFromFile' called"
@@ -79,7 +77,7 @@ getConfPairsFromFile' path = --do
      --return $ map textToString pairs
      getConfPairsFromFile path >>= return . map textToString
 
-{-| Like getConfPairsFromFile but takes a file handle instead of FilePath. |-}
+{-| Like getConfPairsFromFile but takes a file handle instead of FilePath. -}
 getConfPairsFromFile_ :: Handle -> IO [(T.Text, T.Text)]
 getConfPairsFromFile_ hndl = do
      --logDebug "getConfPairsFromFile_ called"
@@ -88,7 +86,7 @@ getConfPairsFromFile_ hndl = do
 
      return $ map getConfPair (getFilteredLines readF)
 
-{-| Like getConfPairsFromFile' but takes a file handle instead of FilePath. |-}
+{-| Like getConfPairsFromFile' but takes a file handle instead of FilePath. -}
 getConfPairsFromFile_' :: Handle -> IO [(String, String)]
 getConfPairsFromFile_' hndl = --do
      --logDebug "getConfPairsFromFile_' called"
@@ -97,7 +95,7 @@ getConfPairsFromFile_' hndl = --do
      --return $ map textToString pairs
      getConfPairsFromFile_ hndl >>= return . map textToString
 
-{-| Like getConfPairsFromFile but reads file contents strictly. |-}
+{-| Like getConfPairsFromFile but reads file contents strictly. -}
 getConfPairsFromFileS :: FilePath -> IO [(T.Text, T.Text)]
 getConfPairsFromFileS path = do
      --logDebug "getConfPairsFromFileS called"
@@ -109,7 +107,7 @@ getConfPairsFromFileS path = do
      
      return $ map getConfPair (getFilteredLines readF)
 
-{-| Like getConfPairsFromFile' but reads file contents strictly. |-}
+{-| Like getConfPairsFromFile' but reads file contents strictly. -}
 getConfPairsFromFileS' :: FilePath -> IO [(String, String)]
 getConfPairsFromFileS' path = --do
      --logDebug "getConfPairsFromFileS' called"
@@ -118,7 +116,7 @@ getConfPairsFromFileS' path = --do
      --return $ map textToString pairs
      getConfPairsFromFileS path >>= return . map textToString
 
-{-| Take a ByteString text, convert to lines and return Text pairs. |-}
+{-| Take a ByteString text, convert to lines and return Text pairs. -}
 getConfPairsFromByteString :: BS.ByteString -> IO [(T.Text, T.Text)]
 getConfPairsFromByteString bS = do
      --logDebug "getConfPairsFromByteString called"
@@ -127,7 +125,7 @@ getConfPairsFromByteString bS = do
      let fileLines = [ x | x <- map T.pack (lines $ BS.unpack bS), x /= T.empty, T.head (T.stripStart x) /= '#' ]
      return $ map getConfPair fileLines
 
-{-| Like getConfPairsFromByteString but returns String. |-}
+{-| Like getConfPairsFromByteString but returns String. -}
 getConfPairsFromByteString' :: BS.ByteString -> IO [(String, String)]
 getConfPairsFromByteString' bS = --do
      --logDebug "getConfPairsFromByteString' called"
@@ -145,7 +143,7 @@ getConfPair line = (T.strip $ head s, T.strip $ last s)
 textToString :: (T.Text, T.Text) -> (String, String)
 textToString x = (T.unpack $ fst x, T.unpack $ snd x)
 
-{-| Gets the value for a list of value pairs. The function matches on the first key found and does not check for multiple keys with the same name. If the key is not found Nothing is returned. |-}
+{-| Gets the value for a list of value pairs. The function matches on the first key found and does not check for multiple keys with the same name. If the key is not found Nothing is returned. -}
 getValue :: T.Text -> [(T.Text, T.Text)] -> Maybe T.Text
 getValue _ [] = Nothing
 getValue key (x:xs) = if fst x == key
@@ -159,7 +157,7 @@ getValueS = lookup
 
 -- Bkr specific fuctions
 
-{-| Take a bkr conf pair and write a .bkrm file in a temporary directory. |-}
+{-| Take a bkr conf pair and write a .bkrm file in a temporary directory. -}
 writeBkrMetaFile :: (String, String) -> IO FilePath
 writeBkrMetaFile confPair = do
      --logDebug "writeBkrMetaFile called"
@@ -185,7 +183,7 @@ writeBkrMetaFile confPair = do
      hClose hndl
      return fullPath
 
-{-| Check if bkr.conf is passed as the first argument. We do not check if the bkr.conf file is valid, just that a file was passed as the first argument. |-}
+{-| Check if bkr.conf is passed as the first argument. We do not check if the bkr.conf file is valid, just that a file was passed as the first argument. -}
 getArgIfValid :: IO (Maybe FilePath)
 getArgIfValid = do
      args <- getArgs
@@ -197,7 +195,7 @@ getArgIfValid = do
                      else return Nothing
           _   -> return Nothing
 
-{-| Check if there is a bkr.conf file in the same directory as the bkr executable. We do not check that the bkr.conf file is valid, only if it exists. |-}
+{-| Check if there is a bkr.conf file in the same directory as the bkr executable. We do not check that the bkr.conf file is valid, only if it exists. -}
 getBkrConfFromDot :: IO (Maybe FilePath)
 getBkrConfFromDot = do
      fileExists <- doesFileExist "./bkr.conf"
@@ -205,7 +203,7 @@ getBkrConfFromDot = do
         then return $ Just "./bkr.conf"
         else return Nothing
 
-{-| Check if there is a $HOME/.bkr.conf file. We do not check if the .bkr.conf file is valid, only if it exists. If the file cannot be found the bkr.conf.example file is copied to $HOME/.bkr.conf and the user is instructed to edit it. |-}
+{-| Check if there is a $HOME/.bkr.conf file. We do not check if the .bkr.conf file is valid, only if it exists. If the file cannot be found the bkr.conf.example file is copied to $HOME/.bkr.conf and the user is instructed to edit it. -}
 getBkrFromHomeDir :: IO (Maybe FilePath)
 getBkrFromHomeDir = do
      homeDir <- getHomeDirectory
@@ -223,7 +221,7 @@ Gets file path to the Bkr configuration file. File locations checked (in order):
     1. The first command line argument
     2. ./bkr.conf
     3. $HOME/.bkr.conf
-|-}
+-}
 getConfFile :: IO (Maybe FilePath)
 getConfFile = do
      argIfValid <- getArgIfValid
@@ -257,7 +255,7 @@ getConfSetting key = do
           Just x   -> liftM (getValueS key) (getConfPairsFromFileS' x)
           Nothing  -> return Nothing
 
-{-| Get a list of the folders to back up. If the setting cannot be found an IO Error is raised. |-}
+{-| Get a list of the folders to back up. If the setting cannot be found an IO Error is raised. -}
 getBackupFolders :: IO [FilePath]
 getBackupFolders = do
      --logDebug "getBackupFolders called"
@@ -267,7 +265,7 @@ getBackupFolders = do
           Just x  -> return $ map strip (split "," x)
           Nothing -> ioError $ userError "Failed to find the configuration setting folderstobackup. Please check the configuration."
 
-{-| Get a list of files to ignore. If the settings cannot be found an empty list is returned |-}
+{-| Get a list of files to ignore. If the settings cannot be found an empty list is returned. -}
 getFilesToIgnore :: IO [FilePath]
 getFilesToIgnore = do
      --logDebug "getFilesToIgnore called"
@@ -279,7 +277,7 @@ getFilesToIgnore = do
                   --logDebug $ "getFilesToIgnore: " ++ "the setting filestoignore was not found."
                   return []
 
-{-| Get a list of files to ignore be extension. If the settings cannot be found an empty list is returned |-}
+{-| Get a list of files to ignore be extension. If the settings cannot be found an empty list is returned. -}
 getFileExtensionsToIgnore :: IO [FilePath]
 getFileExtensionsToIgnore = do
     --logDebug "getFileExtensionsToIgnore called"
@@ -291,7 +289,7 @@ getFileExtensionsToIgnore = do
                  --logDebug $ "getFileExtensionsToIgnore: " ++ "the setting fileextensionstoignore was not found."
                  return []
 
-{-| Get a list of folders to ignore. If the settings cannot be found an empty list is returned |-}
+{-| Get a list of folders to ignore. If the settings cannot be found an empty list is returned. -}
 getFoldersToIgnore :: IO [FilePath]
 getFoldersToIgnore = do
     --logDebug "getFoldersToIgnore called"
@@ -303,8 +301,7 @@ getFoldersToIgnore = do
                  --logDebug $ "getFoldersToIgnore: " ++ "the setting folderstoignore was not found."
                  return []
 
-{-| Get if we should use S3 reduced redundancy, if the setting cannot be found return reduced redundacy (there is not real reason not to use reduced redundancy for this kind of application.
-|-} 
+{-| Get if we should use S3 reduced redundancy, if the setting cannot be found return reduced redundacy (there is not real reason not to use reduced redundancy for this kind of application. |-}
 getUseS3ReducedRedundancy :: IO (Maybe StorageClass)
 getUseS3ReducedRedundancy = do
      --logDebug "getUseS3ReducedRedundancy called"
@@ -318,7 +315,7 @@ getUseS3ReducedRedundancy = do
                   --logDebug $ "getUseS3ReducedRedundancy: " ++ "the setting uses3reducedredundancy was not found."
                   return $ Just ReducedRedundancy
 
-{-| Get the log priority and default to debug if it could not be found or is misconfigured. |-}
+{-| Get the log priority and default to debug if it could not be found or is misconfigured. -}
 getLogLevel :: IO Priority
 getLogLevel = do
      --print "getLogLevel called"
@@ -331,7 +328,7 @@ getLogLevel = do
                          _          -> return DEBUG
           Nothing -> return DEBUG
 
-{-| Get the file update check type, default to smart if it could not be found or is misconfigured. |-}
+{-| Get the file update check type, default to smart if it could not be found or is misconfigured. -}
 getFileUpdateCheckType :: IO FileUpdateCheckType
 getFileUpdateCheckType = do
      --logDebug "getFileUpdateCheckType called"
@@ -344,7 +341,7 @@ getFileUpdateCheckType = do
                          _          -> return FUCSmart
           _      -> return FUCSmart
 
-{-| Get log file location. $HOME, $TMP and $APPDATA are replaced with user's home directory, system temp directory and user's application data directory respectively. If the directory is not present it's created.|-}
+{-| Get log file location. $HOME, $TMP and $APPDATA are replaced with user's home directory, system temp directory and user's application data directory respectively. If the directory is not present it's created. -}
 getLogFileLocation :: IO (Maybe FilePath)
 getLogFileLocation = do
      confSetting <- getConfSetting "logfilelocation"
@@ -364,7 +361,7 @@ getLogFileLocation = do
            strReplace (x:xs) (xR:xRs) s = strReplace xs xRs (replace x xR s)
            strReplace _ _ s = s
 
-{-| Get log file maximum size in bytes. If the size cannot be found default to 5MB. |-}
+{-| Get log file maximum size in bytes. If the size cannot be found default to 5MB. -}
 getLogFileMaximumSize :: IO Int
 getLogFileMaximumSize = do
      confSetting <- getConfSetting "logfilemaximumsize"
