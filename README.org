@@ -6,29 +6,62 @@ The goal with bkr is to create a simple and easy to use backup utility that util
 
 ** What does bkr do?
 
-bkr only supports S3 as backend at this time. You need to have an AWS account and a S3 bucket for your backups. Set your AWS account credentials and the folder to backup in the bkr.conf file (the bkr.conf file must be in the same folder as the bkr executable). bkr pushes the wanted files to the bucket. Next time bkr runs it checks which files has not been backed up or has changed since the last backup and pushes only these files. 
+bkr only supports S3 as target service at this time. You need to have an AWS account and a S3 bucket for your backups. Set your AWS account credentials and the folder to backup in the bkr.conf file. bkr uploads files from the wanted folders to the bucket. Next time bkr runs it checks for new or changed files and uploads these. bkr does not save copies of changed files, hence it's rather a synchronization then a backup tool at the moment.
 
 * Current state of bkr
 
 bkr is in a very early development stage. Currently it: 
-- is rather a synchronization then a backup service (history/versions are not supported, wanted files are uploaded and when a local file changes the new version is uploaded overwriting the existing online copy)
+- is rather a synchronization then a backup tool (history/versions are not supported, wanted files are uploaded and when a local file changes the new version is uploaded overwriting the existing online copy)
 - only supports Amazon S3 as backup target service
 - no restore functionality (manual restores are required)
-+ almost no error handling
-+ no scheduling (cron or similar is required)
+- very little error handling
+- no scheduling (cron or similar is required)
+
+Future versions might break backwards compatibility.
 
 * Installation
 
-to be added...
+The easiest installation method is:
+1. Make sure to have Haskell platform installed (http://hackage.haskell.org/platform/). Only HP 2011.4.0.0 is supported at the moment.
+2. From a command line:
+$ cabal update
+$ cabal install bkr
 
 * Set up
 
-All configuration is made in the bkr.conf file. See bkr.conf.example (edit and rename to bkr.conf).
+All configuration is made in a single configuration file, bkr looks for a configuration file in the following locations:
+
+1. The first command line argument ($ bkr /path/to/bkr.conf)
+2. In the same folder as the bkr executable (./bkr.conf)
+3. In your home folder named .bkr.conf ($HOME/.bkr.conf)
+
+The easiest way to set up bkr is:
+1. After installation run it ($ bkr).
+2. On the initial run it will fail to find a configuration file and will create a example file in your home folder named .bkr.conf ($HOME/.bkr.conf).
+3. Edit the $HOME/.bkr.conf file with your favorite text editor. It should be documented well enough so you want have any problems setting it up, if it's not please file a bug report.
+4. Run bkr ($ bkr)
+5. Set up bkr to run regularly using, for instance, cron.
 
 * Release Notes
 
 ** 0.1.0
 
-This is a proof-of-concept release. Only the most basic functionality is implemented, very little documentation is done, there is no error handling, no logging, no optimization what so ever, only one folder can be backed up, among other.
+This is a fully functioning release but should be seen as a proof-of-concept release. Only basic functionality is implemented, documentation is rather rough, almost no error handling, synchronization rather then backup, no restore, only POSIX, only S3, among other.
 
-However, the basic backup functionality is there and I personally use it for all my backups.
+Developed and tested on OS X 10.7 (and HP 2011.4.0.0) but should run fine on all POSIX compliant systems. Windows is currently not supported.
+
+** 0.1.x
+
+Reserved for bug fixes releases.
+
+** 0.2.0 (planned)
+- Windows support.
+- Better documentation.
+- Better error handling:
+     + Detect wrong or not configured aws access key id and secret access key, ask and configure.
+     + Detect wrong or not configured S3 bucket name, ask and create.
+     + Detect not configured folders to backup.
+     + Detect not existing folders to backup and warn.
+     + Handle gracefully if not permitted to write .bkrmeta file.
+- Activate S3 upload MD5 digest
+- More...
