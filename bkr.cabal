@@ -2,9 +2,9 @@ name:                bkr
 version:             0.1.0
 synopsis:            Backup utility for backing up to cloud storage services (S3 only right now)
 description:
-        Easy to use backup utility for utilizing cloud services (S3 only right now) as backup storage.
+        Easy to use backup tool utilizing cloud services (S3 only right now) as backup storage.
 
-        bkr is in very early development stage, future versions might break backwards compatibility. Right now bkr is rather an synchronization then a backup utility. bkr uploads files from wanted folders to a remote storage service, next time it runs it checks for changes and uploads new or altered files but does not keep copies of altered files (hence rather synchronization then backup). For more information about installation and setup please visit https://github.com/ingesson/bkr. All suggestions and bug reports are of course more then welcome.
+        bkr is in very early development stage. Right now bkr is rather a synchronization then a backup utility. bkr uploads files from wanted folders to a remote storage service, next time it runs it checks for changes and uploads new or altered files but does not keep copies of altered files (hence rather synchronization then backup). For more information about installation and setup please visit https://github.com/ingesson/bkr. All suggestions and bug reports are of course more then welcome.
 license:             BSD3
 license-file:        LICENSE
 copyright:           (c) 2012 Michael Smietana
