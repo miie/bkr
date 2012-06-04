@@ -1,6 +1,6 @@
 
 
-module Bkr.Hasher ( getFileHash
+module System.Bkr.Hasher ( getFileHash
                   , getHashForString
                   ) where
 

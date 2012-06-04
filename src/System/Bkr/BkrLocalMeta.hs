@@ -1,14 +1,14 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Bkr.BkrLocalMeta ( getLocalMeta
+module System.Bkr.BkrLocalMeta ( getLocalMeta
                         , insertBkrMeta
                         , deleteBkrMeta
                         ) where
 
-import Bkr.BkrLogging
-import Bkr.BkrFundare
-import Bkr.BkrConfig (FileUpdateCheckType(..))
+import System.Bkr.BkrLogging
+import System.Bkr.BkrFundare
+import System.Bkr.BkrConfig (FileUpdateCheckType(..))
 --import Bkr.Hasher (getHashForString)
 
 import Database.HDBC

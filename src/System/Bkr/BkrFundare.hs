@@ -1,9 +1,9 @@
 
-module Bkr.BkrFundare ( BkrMeta(..)
+module System.Bkr.BkrFundare ( BkrMeta(..)
                       , getBkrMeta
                       ) where
 
-import Bkr.Hasher
+import System.Bkr.Hasher
 
 import System.Directory (getModificationTime)
 

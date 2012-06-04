@@ -6,11 +6,11 @@ bkr is in very early development stage. At the moment bkr is rather a synchroniz
 For more information about installation and setup please visit https://github.com/ingesson/bkr. All suggestions and bug reports are of course more then welcome.
 -}
 
-import Bkr.BkrFundare
-import Bkr.BkrConfig
-import Bkr.BkrLogging
-import qualified Bkr.BkrLocalFile as F
-import qualified Bkr.TargetServices.S3.BkrS3Bucket as S3B
+import System.Bkr.BkrFundare
+import System.Bkr.BkrConfig
+import System.Bkr.BkrLogging
+import qualified System.Bkr.BkrLocalFile as F
+import qualified System.Bkr.TargetServices.S3.BkrS3Bucket as S3B
 
 import System.Directory (removeFile)
 import Control.Monad (when)

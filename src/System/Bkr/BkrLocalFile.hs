@@ -1,16 +1,16 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Bkr.BkrLocalFile ( getBkrMetaForLocalPaths
+module System.Bkr.BkrLocalFile ( getBkrMetaForLocalPaths
                         --, getBkrObjects
                         --, getAllFolders
                         --, getAllFiles
                         ) where
 
-import Bkr.Hasher
-import Bkr.BkrFundare
-import Bkr.BkrLocalMeta
-import Bkr.BkrConfig (getFilesToIgnore, getFileExtensionsToIgnore, getFoldersToIgnore, getFileUpdateCheckType, FileUpdateCheckType(..))
+import System.Bkr.Hasher
+import System.Bkr.BkrFundare
+import System.Bkr.BkrLocalMeta
+import System.Bkr.BkrConfig (getFilesToIgnore, getFileExtensionsToIgnore, getFoldersToIgnore, getFileUpdateCheckType, FileUpdateCheckType(..))
 
 import Control.Monad (filterM, liftM)
 import System.Directory (doesDirectoryExist, getDirectoryContents, doesFileExist, getModificationTime)

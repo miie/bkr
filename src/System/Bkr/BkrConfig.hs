@@ -1,5 +1,5 @@
 
-module Bkr.BkrConfig ( FileUpdateCheckType(..)
+module System.Bkr.BkrConfig ( FileUpdateCheckType(..)
                      , getConfPairsFromFile
                      , getConfPairsFromFile'
                      , getConfPairsFromFile_
@@ -24,7 +24,7 @@ module Bkr.BkrConfig ( FileUpdateCheckType(..)
                      ) where
 
 --import Bkr.BkrLogging
-import Bkr.Hasher
+import System.Bkr.Hasher
 
 import System.IO
 import System.Directory (getTemporaryDirectory, getModificationTime, doesFileExist, getHomeDirectory, copyFile, getTemporaryDirectory, getAppUserDataDirectory, createDirectoryIfMissing)

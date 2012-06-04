@@ -1,15 +1,15 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
-module Bkr.TargetServices.S3.BkrS3Bucket ( getBkrObjects
+module System.Bkr.TargetServices.S3.BkrS3Bucket ( getBkrObjects
                                          , putBackupFile
                                          , putBkrMetaFile
                                          ) where
 
-import Bkr.BkrConfig
-import Bkr.BkrFundare
-import Bkr.Hasher
-import Bkr.BkrLogging
-import Bkr.TargetServices.S3.BkrAwsConfig
+import System.Bkr.BkrConfig
+import System.Bkr.BkrFundare
+import System.Bkr.Hasher
+import System.Bkr.BkrLogging
+import System.Bkr.TargetServices.S3.BkrAwsConfig
 
 import System.IO
 import Network.HTTP.Conduit
@@ -55,7 +55,7 @@ getBkrObjectKeys gbMarker objList = do
                                                                   , S3.gbMaxKeys   = Nothing
                                                                   , S3.gbPrefix    = Just $ T.pack "bkrm"
                                                                   } `C.catch` \ (ex :: C.SomeException) -> do
-                                                                  logCritical "Failed to get objects from the S3 bucket, please check that your S3 credentials in the bkr configuration file are set correctly. The error was:"
+                                                                  logCritical "Failed to get objects from S3 bucket, please check that your S3 credentials in the bkr configuration file are set correctly. The error was:"
                                                                   C.throwIO ex
      
      -- Print the response metadata.

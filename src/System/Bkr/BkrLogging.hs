@@ -1,11 +1,11 @@
 
-module Bkr.BkrLogging ( setupLogging
+module System.Bkr.BkrLogging ( setupLogging
                       , logDebug
                       , logNotice
                       , logCritical
                       ) where
 
-import Bkr.BkrConfig (getLogFileLocation,  getLogFileMaximumSize)
+import System.Bkr.BkrConfig (getLogFileLocation,  getLogFileMaximumSize)
 
 import System.Log.Logger
 import System.Log.Handler.Simple

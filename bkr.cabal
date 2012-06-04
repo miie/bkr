@@ -4,7 +4,7 @@ synopsis:            Backup utility for backing up to cloud storage services (S3
 description:
         Easy to use backup tool utilizing cloud services (S3 only right now) as backup storage.
 
-        bkr is in very early development stage. Right now bkr is rather a synchronization then a backup utility. bkr uploads files from wanted folders to a remote storage service, next time it runs it checks for changes and uploads new or altered files but does not keep copies of altered files (hence rather synchronization then backup). For more information about installation and setup please visit https://github.com/ingesson/bkr. All suggestions and bug reports are of course more then welcome.
+        bkr is in very early development stage. Right now bkr is rather a synchronization then a backup utility. bkr uploads files from wanted folders to a remote storage service, next time it runs it checks for changes and uploads new or altered files but does not keep copies of altered files (hence rather synchronization then backup). For more information about installation and setup please visit "https://github.com/ingesson/bkr". All suggestions and bug reports are of course more then welcome.
 license:             BSD3
 license-file:        LICENSE
 copyright:           (c) 2012 Michael Smietana
@@ -20,14 +20,14 @@ bug-reports:         https://github.com/ingesson/bkr/issues
 library
   hs-source-dirs: src
   
-  exposed-modules: Bkr.Hasher
-                 , Bkr.BkrConfig
-                 , Bkr.BkrFundare
-                 , Bkr.BkrLogging
-                 , Bkr.BkrLocalFile
-                 , Bkr.BkrLocalMeta
-                 , Bkr.TargetServices.S3.BkrS3Bucket
-                 , Bkr.TargetServices.S3.BkrAwsConfig
+  exposed-modules: System.Bkr.Hasher
+                 , System.Bkr.BkrConfig
+                 , System.Bkr.BkrFundare
+                 , System.Bkr.BkrLogging
+                 , System.Bkr.BkrLocalFile
+                 , System.Bkr.BkrLocalMeta
+                 , System.Bkr.TargetServices.S3.BkrS3Bucket
+                 , System.Bkr.TargetServices.S3.BkrAwsConfig
 
   build-depends:   base == 4.*
                  , directory >= 1.0.1.2 && < 1.1.0.2

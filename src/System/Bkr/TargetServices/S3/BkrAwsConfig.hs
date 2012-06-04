@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Bkr.TargetServices.S3.BkrAwsConfig ( getS3Config
+module System.Bkr.TargetServices.S3.BkrAwsConfig ( getS3Config
                                           , getS3BucketName
                                           ) where
 
-import Bkr.BkrConfig
+import System.Bkr.BkrConfig
 
 import Aws.Aws
 import Aws.Credentials
