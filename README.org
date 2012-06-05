@@ -22,7 +22,7 @@ Future versions might break backwards compatibility.
 * Installation
 
 The easiest installation method is:
-1. Make sure to have Haskell platform installed (http://hackage.haskell.org/platform/). Only HP 2011.4.0.0 is supported at the moment.
+1. Make sure to have Haskell platform installed (http://hackage.haskell.org/platform/). HP 2011.4.0.0 and 2012.2.0.0 is supported at the moment.
 2. From a command line:
 3. Run: $ cabal update
 4. Run: $ cabal install bkr
@@ -52,7 +52,11 @@ Developed and tested on OS X 10.7 (and HP 2011.4.0.0) but should run fine on all
 
 ** 0.1.x
 
-Reserved for bug fixes releases.
+Reserved for bug fixes for the 0.1 release.
+
+** 0.1.1
+
+- HP 2012.2.0.0 (GHC 7.4) support. 
 
 ** 0.2.0 (planned)
 - Windows support.
