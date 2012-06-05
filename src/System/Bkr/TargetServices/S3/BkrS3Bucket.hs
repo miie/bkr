@@ -110,8 +110,7 @@ putBkrMetaFile filePath = do
      --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
      putFile filePath uploadName Nothing 0
 
-{-| Upload file to S3. putFile will handle a failed attempt to upload the file by waiting 60 seconds and then retrying. If this fails five times it will raise an IO Error.
-|-}
+{-| Upload file to S3. putFile will handle a failed attempt to upload the file by waiting 60 seconds and then retrying. If this fails five times it will raise an IO Error. -}
 putFile :: FilePath -> T.Text -> Maybe B.ByteString -> Int -> IO ()
 putFile filePath uploadName contentMD5 noOfRetries =
      putFile' filePath uploadName contentMD5 `C.catch` \ (ex :: C.SomeException) ->
@@ -171,7 +170,6 @@ putFile' filePath uploadName contentMD5 = do
      readIORef metadataRef >>= logDebug . ("putFile: response metadata: " ++) . show
 
 {-
-{-| Deprecated -}
 getBkrObjectsOld :: IO [BkrMeta]
 getBkrObjectsOld = do
 
@@ -213,7 +211,6 @@ getBkrObjectsOld = do
      return bkrObjects
 -}
 {-
-{-| Deprecated. Filter function for filtering .bkrm objects (files). |-}
 hasBkrExtension :: T.Text -> Bool
 hasBkrExtension t = do
      if (Prelude.last $ T.split (=='.') t) == "bkrm"
@@ -222,14 +219,14 @@ hasBkrExtension t = do
 -}
 
 {-
-{-| A small function to save the object's data into a file handle. |-}
+{-| A small function to save the object's data into a file handle. -}
 saveObject :: IO Handle -> Aws.HTTPResponseConsumer ()
 --saveObject hndl status headers source = source $$ sinkIOHandle hndl
 saveObject hndl _ _ source = source $$ sinkIOHandle hndl
 -}
 
 {-
-{-| Takes a list of bkr objects, gets them one by one from S3, parses content creating and returning a list of BkrObject's. This function uses the Knob package for in-memory temporary storage of the downloaded bkr object. |-}
+{-| Takes a list of bkr objects, gets them one by one from S3, parses content creating and returning a list of BkrObject's. This function uses the Knob package for in-memory temporary storage of the downloaded bkr object. -}
 getBkrObject :: [T.Text] -> IO [BkrMeta]
 getBkrObject objNames = do
 
@@ -264,7 +261,7 @@ getBkrObject objNames = do
      return (concat objects)
 -}
 {-
-{-| Like getBkrObject but uses a temporary file instead of a virtual file when fetching and reading the bkr object files. |-}
+{-| Like getBkrObject but uses a temporary file instead of a virtual file when fetching and reading the bkr object files. -}
 getBkrObject' :: [T.Text] -> IO [BkrMeta]
 getBkrObject' fileNames = do
 
