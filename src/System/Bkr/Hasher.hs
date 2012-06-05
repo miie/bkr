@@ -1,8 +1,8 @@
 
 
 module System.Bkr.Hasher ( getFileHash
-                  , getHashForString
-                  ) where
+                         , getHashForString
+                         ) where
 
 import Data.Digest.Pure.MD5 (md5, MD5Digest)
 
