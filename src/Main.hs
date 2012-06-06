@@ -1,9 +1,7 @@
 {-|
-bkr is meant to be an easy to use backup tool utilizing cloud services (S3 only right now) as backup storage.
+Easy to use backup tool utilizing cloud services (S3 only right now) as backup storage.
 
-bkr is in very early development stage. At the moment bkr is rather a synchronization then a backup utility. bkr uploads files from wanted folders to a remote storage service, next time it runs it checks for changes and uploads new or altered files but does not keep copies of altered files (hence rather synchronization then backup).
-
-For more information about installation and setup please visit https://github.com/ingesson/bkr. All suggestions and bug reports are of course more then welcome.
+bkr is in very early development stage. Right now bkr is rather a synchronization then a backup utility. bkr uploads files from wanted folders to a remote storage service, next time it runs it checks for changes and uploads new or altered files but does not keep copies of altered files (hence rather synchronization then backup). For more information about installation and setup, release notes and more please visit https:\/\/github.com\/ingesson\/bkr. All suggestions and bug reports are of course more then welcome.
 -}
 
 import System.Bkr.BkrFundare
