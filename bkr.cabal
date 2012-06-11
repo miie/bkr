@@ -1,5 +1,5 @@
 name:                bkr
-version:             0.1.1
+version:             0.1.2
 synopsis:            Backup utility for backing up to cloud storage services (S3 only right now)
 description:
         Easy to use backup tool utilizing cloud services (S3 only right now) as backup storage.
@@ -27,6 +27,7 @@ library
                    , System.Bkr.BkrLogging
                    , System.Bkr.BkrLocalFile
                    , System.Bkr.BkrLocalMeta
+                   , System.Bkr.BkrWriteExampleConfFile
                    , System.Bkr.TargetServices.S3.BkrS3Bucket
                    , System.Bkr.TargetServices.S3.BkrAwsConfig
 
