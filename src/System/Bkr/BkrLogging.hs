@@ -13,7 +13,7 @@ import System.Log.Formatter
 import System.Log.Handler (setFormatter)
 import Data.Maybe (fromJust)
 import System.Posix.Files (getFileStatus, fileSize)
-import System.Directory (removeFile)
+import System.Directory (removeFile, doesFileExist)
 import Control.Monad (when)
 
 --import System.Log.Handler.Growl
@@ -29,11 +29,15 @@ setupLogging logLevel = do
               putStrLn "Could not find log file, please make sure to set the log file path correctly in bkr settings. Will log to stderr."
               updateGlobalLogger "bkrfile" (setLevel logLevel)
         else do
-              -- Check that the log file hasn't reached maximum size and recycle if it has
-              logFileMaxSize <- getLogFileMaximumSize
-              fileStatus <- getFileStatus (fromJust logFilePath)
-              let logFileSize = fileSize fileStatus
-              when ((read (show logFileSize) :: Int) > logFileMaxSize) (removeFile $ fromJust logFilePath)
+              -- If the log file exists, check that is hasn't reached maximum size and recycle if it has
+              logFileExists <- doesFileExist (fromJust logFilePath)
+              when logFileExists (do
+                                   logFileMaxSize <- getLogFileMaximumSize
+                                   fileStatus <- getFileStatus (fromJust logFilePath)
+                                   let logFileSize = fileSize fileStatus
+                                   when ((read (show logFileSize) :: Int) > logFileMaxSize) (do
+                                                                                              removeFile $ fromJust logFilePath
+                                                                                              print "The log file reached maximum allowed size and has been recycled."))
 
               -- File handler
               h <- fileHandler (fromJust logFilePath) DEBUG >>= \lh -> return $ setFormatter lh (tfLogFormatter "%F %X.%q" "$time|$loggername|$prio: $msg")
