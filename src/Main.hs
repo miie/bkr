@@ -4,9 +4,9 @@ Easy to use backup tool utilizing cloud services (S3 only right now) as backup s
 bkr is in very early development stage. Right now bkr is rather a synchronization then a backup utility. bkr uploads files from wanted folders to a remote storage service, next time it runs it checks for changes and uploads new or altered files but does not keep copies of altered files (hence rather synchronization then backup). For more information about installation and setup, release notes and more please visit https:\/\/github.com\/ingesson\/bkr. All suggestions and bug reports are of course more then welcome.
 -}
 
-import System.Bkr.BkrFundare
-import System.Bkr.BkrConfig
-import System.Bkr.BkrLogging
+import System.Bkr.BkrFundare (BkrMeta(..))
+import System.Bkr.BkrConfig (getConfFile, getLogLevel, getBackupFolders, writeBkrMetaFile)
+import System.Bkr.BkrLogging (setupLogging, logNotice, logDebug)
 import qualified System.Bkr.BkrLocalFile as F
 import qualified System.Bkr.TargetServices.S3.BkrS3Bucket as S3B
 
