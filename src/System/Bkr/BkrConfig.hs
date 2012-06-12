@@ -25,9 +25,10 @@ module System.Bkr.BkrConfig ( FileUpdateCheckType(..)
 
 --import Bkr.BkrLogging
 import System.Bkr.Hasher
+import System.Bkr.BkrWriteExampleConfFile (writeExampleConfFile)
 
 import System.IO
-import System.Directory (getTemporaryDirectory, getModificationTime, doesFileExist, getHomeDirectory, copyFile, getTemporaryDirectory, getAppUserDataDirectory, createDirectoryIfMissing)
+import System.Directory (getTemporaryDirectory, getModificationTime, doesFileExist, getHomeDirectory, getTemporaryDirectory, getAppUserDataDirectory, createDirectoryIfMissing)
 import System.FilePath.Posix (takeDirectory)
 import Control.Monad (liftM)
 import Data.String.Utils (split, strip, replace)
@@ -166,7 +167,7 @@ writeBkrMetaFile confPair = do
      -- Get hash of the file name
      let fullPathHash = show $ getHashForString $ fst confPair
      -- Get the full file path to the .bkrm file (<full path hash:file hash.bkrm>)
-     let fullPath = tmpDir ++ fullPathHash ++ "." ++ snd confPair
+     let fullPath = tmpDir ++ "/" ++ fullPathHash ++ "." ++ snd confPair
      -- Get file modification time
      modTime <- getModificationTime $ fst confPair 
      -- Open a file handle
@@ -212,8 +213,9 @@ getBkrFromHomeDir = do
      if fileExists
         then return $ Just filePath
         else do
-              copyFile "./bkr.conf.example" filePath
-              print $ "bkr configuration file could not be found. An example configuration file has been copied to your home directory, " ++ filePath ++ ". Please edit the configuration file and run bkr again."
+              --copyFile "./bkr.conf.example" filePath
+              writeExampleConfFile filePath
+              print $ "bkr configuration file could not be found. An example configuration file has been created in your home directory, " ++ filePath ++ ". Please edit the configuration file and run bkr again."
               return Nothing
 
 {-|
