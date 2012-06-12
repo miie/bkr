@@ -36,9 +36,9 @@ All configuration is made in a single configuration file, bkr looks for a config
 3. In your home folder named .bkr.conf ($HOME/.bkr.conf)
 
 The easiest way to set up bkr is:
-1. After installation run it ($ bkr).
-2. On the initial run it will fail to find a configuration file and will create a example file in your home folder named .bkr.conf ($HOME/.bkr.conf).
-3. Edit the $HOME/.bkr.conf file with your favorite text editor. It should be documented well enough so you want have any problems setting it up, if it's not please file a bug report.
+1. After installation run bkr ($ bkr).
+2. When executed the first time it will create a example configuration file, .bkr.conf, in your home folder ($HOME/.bkr.conf).
+3. Edit the $HOME/.bkr.conf file with your favorite text editor. It should be documented well enough for you to make needed configuration changes, if not please file a bug report.
 4. Run bkr ($ bkr)
 5. Set up bkr to run regularly using, for instance, cron.
 
@@ -56,7 +56,13 @@ Reserved for bug fixes for the 0.1 release.
 
 ** 0.1.1
 
-- HP 2012.2.0.0 (GHC 7.4) support. 
+- Feature: HP 2012.2.0.0 (GHC 7.4) support. 
+
+** 0.1.2
+
+- Bug fix: if bkr.conf could not be found bkr failed to create $HOME/.bkr.conf.
+- Bug fix: if the log file location was configured but the log file was missing bkr crashed.
+- Bug fix: missing / after tmp folder location when creating temporal bkrmeta file. 
 
 ** 0.2.0 (planned)
 - Windows support.
