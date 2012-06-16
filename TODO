@@ -1,4 +1,4 @@
-- Activate providing MD5 digest on putFile for upload verification
+* 0.1.0
 Done - ReducedRedundancy should be configurable in the bkr.conf file
 Done - files not to backup in conf
 Done - file types no to back in conf
@@ -7,15 +7,28 @@ Done - multiple folders to back
 Done - cabal file + project dir structure
 Done - use BkrMetaCheck from object name from getBucket for more optimized check which files should be uploaded
 Done - cache local checksums for BkrMeta for a more optimized check which files should be uploaded
-- add "sync mode" - synchronize the online content with local, removing items online that does not exist locally any more
 Done - Set debug level in conf
-- Handle gracefully if not permitted to write .bkrmeta file
 - Update uploaded file settings, like use S3 reduced redundancy
 Done - read bkr.config from:
   1. command line setting
   2. user home dir
   3. ./bkr.conf
   4. give a valid error
-- Check that bkr.conf is valid
 Done - Handle location of the log file
-- Handle if we cannot write to the log file (or if getLogFileLocation passes Nothing)
+Done - Handle if we cannot write to the log file (or if getLogFileLocation passes Nothing)
+
+* Not in plan at the time
+- Check that bkr.conf is valid
+
+* 0.2.0
+- add "sync mode" - synchronize the online content with local, removing items online that does not exist locally any more
+- Handle gracefully if not permitted to write .bkrmeta file
+- Activate providing MD5 digest on putFile for upload verification
+- Windows support
+- Better documentation
+- Better error handling:
+  1. Detect wrong or not configured aws access key id and secret access key, ask and configure.
+  2. Detect wrong or not configured S3 bucket name, ask and create.
+  3. Detect not configured folders to backup.
+  4. Detect not existing folders to backup and warn.
+- Handle gracefully if not permitted to write .bkrmeta file.
