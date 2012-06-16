@@ -13,22 +13,15 @@ import qualified System.Bkr.TargetServices.S3.BkrS3Bucket as S3B
 import System.Directory (removeFile)
 import Control.Monad (when)
 import Data.Maybe (isNothing, fromJust)
---import Data.Global (declareIORef)
---import List (filter, zip3, concat)
---import Control.Monad (mapM, forM)
---import Data.Maybe (fromJust)
---import Data.String.Utils (split)
 
 main :: IO ()
 main = do
      
      -- Check for valid configuration file and return () if it cannot be found (error message is shown by getConfFile).
-     --print "will get conf file"
      confFile <- getConfFile
      when (isNothing confFile) (return ())
      
      -- Set up logging
-     --print "will set up logging"
      getLogLevel >>= setupLogging
      logNotice "Bkr started"
      logDebug $ "Using config file " ++ (fromJust confFile)
@@ -39,12 +32,10 @@ main = do
 
      -- Get local BkrMeta objects
      logNotice "Getting local files"
-     --bkrLocalMeta <- getBackupFolders >>= mapM F.getBkrObjects
      bkrLocalMeta <- getBackupFolders >>= F.getBkrMetaForLocalPaths     
      
      -- Filter objects to get local objects that are not backed up
      logNotice "Checking which files should be uploaded"
-     --let objToUpload = filter (`notElem` bkrS3Meta) (concat bkrLocalMeta)
      let objToUpload = filter (`notElem` bkrS3Meta) bkrLocalMeta
      -- Create a list with a triple (bkrObj, no of bkrObj, nth bkrObj) to use as a counter
      let len = length objToUpload
@@ -64,4 +55,3 @@ putFiles (bkrObj, len, nthObj) = do
      -- Get .bkrm file
      tmpFilePath <- writeBkrMetaFile (localPath, fileChecksum bkrObj)
      S3B.putBkrMetaFile tmpFilePath >> removeFile tmpFilePath
-     --return ()
