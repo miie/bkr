@@ -1,52 +1,43 @@
 
 module System.Bkr.BkrConfig ( FileUpdateCheckType(..)
-                     , getConfPairsFromFile
-                     , getConfPairsFromFile'
-                     , getConfPairsFromFile_
-                     , getConfPairsFromFile_'
-                     , getConfPairsFromFileS
-                     , getConfPairsFromFileS'
-                     , getConfPairsFromByteString
-                     , getConfPairsFromByteString'
-                     , getConfFile
-                     , writeBkrMetaFile
-                     , getValue
-                     , getValueS
-                     , getBackupFolders
-                     , getFilesToIgnore
-                     , getFileExtensionsToIgnore
-                     , getFoldersToIgnore
-                     , getUseS3ReducedRedundancy
-                     , getLogLevel
-                     , getFileUpdateCheckType
-                     , getLogFileLocation
-                     , getLogFileMaximumSize
-                     ) where
+                            , getConfPairsFromFile
+                            , getConfPairsFromFile'
+                            , getConfPairsFromFile_
+                            , getConfPairsFromFile_'
+                            , getConfPairsFromFileS
+                            , getConfPairsFromFileS'
+                            , getConfPairsFromByteString
+                            , getConfPairsFromByteString'
+                            , getConfFile
+                            , getValue
+                            , getValueS
+                            , getBackupFolders
+                            , getFilesToIgnore
+                            , getFileExtensionsToIgnore
+                            , getFoldersToIgnore
+                            , getUseS3ReducedRedundancy
+                            , getLogLevel
+                            , getFileUpdateCheckType
+                            , getLogFileLocation
+                            , getLogFileMaximumSize
+                            , getIfSynchronizationMode
+                            ) where
 
---import Bkr.BkrLogging
-import System.Bkr.Hasher
+--import System.Bkr.Hasher (getHashForString)
 import System.Bkr.BkrWriteExampleConfFile (writeExampleConfFile)
 
-import System.IO
-import System.Directory (getTemporaryDirectory, getModificationTime, doesFileExist, getHomeDirectory, getTemporaryDirectory, getAppUserDataDirectory, createDirectoryIfMissing)
+import System.IO (Handle, IOMode(..), openBinaryFile, hGetContents, hClose)
+import System.Directory (getTemporaryDirectory, doesFileExist, getHomeDirectory, getTemporaryDirectory, getAppUserDataDirectory, createDirectoryIfMissing)
 import System.FilePath.Posix (takeDirectory)
 import Control.Monad (liftM)
 import Data.String.Utils (split, strip, replace)
 import Aws.S3.Model (StorageClass(..))
 import System.Log.Logger (Priority(..))
 import System.Environment (getArgs)
---import Data.Maybe (isNothing, fromJust)
 
 import qualified System.IO.Strict as S
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Text as T
-
---import System.IO
---import Data.List (lines)
---import Control.Monad (mapM)
---import List (find)
---import Data.Maybe (fromJust)
---import System.IO.Error (ioError, userError)
 
 data FileUpdateCheckType = FUCChecksum
                          | FUCDate
@@ -157,32 +148,6 @@ getValueS :: String -> [(String, String)] -> Maybe String
 getValueS = lookup
 
 -- Bkr specific fuctions
-
-{-| Take a bkr conf pair and write a .bkrm file in a temporary directory. -}
-writeBkrMetaFile :: (String, String) -> IO FilePath
-writeBkrMetaFile confPair = do
-     --logDebug "writeBkrMetaFile called"
-     -- Get tmp dir
-     tmpDir <- getTemporaryDirectory
-     -- Get hash of the file name
-     let fullPathHash = show $ getHashForString $ fst confPair
-     -- Get the full file path to the .bkrm file (<full path hash:file hash.bkrm>)
-     let fullPath = tmpDir ++ "/" ++ fullPathHash ++ "." ++ snd confPair
-     -- Get file modification time
-     modTime <- getModificationTime $ fst confPair 
-     -- Open a file handle
-     hndl <- openBinaryFile fullPath WriteMode
-     -- Map over a list of the lines to write to the file
-     let hPutStrLnHndl = hPutStrLn hndl
-     _ <- mapM hPutStrLnHndl ["[BkrMetaInfo]", 
-                              "fullpath: " ++ fst confPair, 
-                              "checksum: " ++ snd confPair, 
-                              "modificationtime: " ++ show modTime, 
-                              "fullpathchecksum: " ++ show (getHashForString $ fst confPair), 
-                              "modificationtimechecksum: " ++ show (getHashForString $ show modTime)]
-     -- Close the handle and return the file path
-     hClose hndl
-     return fullPath
 
 {-| Check if bkr.conf is passed as the first argument. We do not check if the bkr.conf file is valid, just that a file was passed as the first argument. -}
 getArgIfValid :: IO (Maybe FilePath)
@@ -373,3 +338,13 @@ getLogFileMaximumSize = do
      
      where rInt :: String -> Int
            rInt = read
+
+{-| Get if we should use synchronization mode. Default to False if not found or misconfigured -}
+getIfSynchronizationMode :: IO Bool
+getIfSynchronizationMode = do
+     confSetting <- getConfSetting "synchronizationmode"
+     case confSetting of
+          Just x -> case x of
+                         "yes" -> return True
+                         _     -> return False
+          _      -> return False
