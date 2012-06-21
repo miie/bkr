@@ -26,7 +26,7 @@ import Control.Monad (filterM)
 {-| Convenience function for getting a db connection. -}
 getConn :: FilePath -> IO SL.Connection
 getConn path = do
-     logDebug $ "getSqliteConnection: getting conn for path: " ++ path
+     logDebug $ "getConn: getting conn for path: " ++ path
      
      -- Try usong connectSqlite3 and connectSqlite3Raw if that fails (file system unicode support workaround for OS X)
      SL.connectSqlite3 path `catch` \ (_ :: SqlError) -> SL.connectSqlite3Raw path
@@ -51,19 +51,24 @@ set \"/path/to/db/file.db\" \"INSERT INTO table VALUES (?, ?)\" [[toSql (1 :: In
 @
 -}
 set :: FilePath -> String -> [[SqlValue]] -> IO ()
-set dbFilePath query values = do 
-     logDebug $ "set: called with query: " ++ query -- ++ "\nvalues: " ++ (show values)
-     conn <- getConn dbFilePath
-     catch (do 
-               stmt <- prepare conn query
-               executeMany stmt values
-               doCommit conn)
-               --doDisconnect conn)
-           (\e -> do 
-                     let err = show (e :: SqlError)
-                     logCritical $ "set: got SqlError: " ++ err ++ ", will rollback the transaction"
-                     doRollback conn
-                     doDisconnect conn)
+set dbFilePath query values = 
+     catch (do --TODO!!! Document this added catch!!!
+             logDebug $ "set: called with query: " ++ query -- ++ "\nvalues: " ++ (show values)
+             conn <- getConn dbFilePath
+             catch (do 
+                     stmt <- prepare conn query
+                     executeMany stmt values
+                     doCommit conn)
+                     --doDisconnect conn)
+                   (\e -> do 
+                           let err = show (e :: SqlError)
+                           logCritical $ "set: got SqlError: " ++ err ++ ", will rollback the transaction"
+                           doRollback conn
+                           doDisconnect conn))
+           (\e -> do --TODO!!! Document this added catch!!!
+                   let err = show (e :: SqlError) 
+                   logDebug $ "set: could not get db connection, got error:\n" ++ err
+                   return ())
 
 -- End db convenience functions --
 
@@ -136,20 +141,25 @@ getLocalMeta fileUpdateCheckType dbFilePath = do
 
 {-| Checks if bkrmeta table exists and inserts it if it doesn't. -}
 setTableIfNeeded :: FilePath -> IO ()
-setTableIfNeeded dbFilePath = do
-     logDebug $ "setTableIfNeeded: called for path: " ++ dbFilePath
-     conn <- getConn dbFilePath
-     catch (do
-             --result <- quickQuery' conn "SELECT * FROM bkrmeta LIMIT 1" []
-             _ <- quickQuery' conn "SELECT * FROM bkrmeta LIMIT 1" []
-             doDisconnect conn
-             logDebug "setTableIfNeeded: table exists"
-             return ())
-           (\e -> do 
-                   let err = show (e :: SqlError)
-                   logDebug $ "setTableIfNeeded: got sql error: " ++ err ++ ", will set table"
-                   doDisconnect conn
-                   setTable dbFilePath)
+setTableIfNeeded dbFilePath = 
+     catch (do --TODO!!! Document this added catch!!!
+             logDebug $ "setTableIfNeeded: called for path: " ++ dbFilePath
+             conn <- getConn dbFilePath
+             catch (do
+                     --result <- quickQuery' conn "SELECT * FROM bkrmeta LIMIT 1" []
+                     _ <- quickQuery' conn "SELECT * FROM bkrmeta LIMIT 1" []
+                     doDisconnect conn
+                     logDebug "setTableIfNeeded: table exists"
+                     return ())
+                   (\e -> do 
+                           let err = show (e :: SqlError)
+                           logDebug $ "setTableIfNeeded: got sql error: " ++ err ++ ", will set table"
+                           doDisconnect conn
+                           setTable dbFilePath))
+           (\e -> do --TODO!!! Document this added catch!!!
+                   let err = show (e :: SqlError) 
+                   logDebug $ "setTableIfNeeded: could not get db connection, got error:\n" ++ err
+                   return ())
 
 {-| Inserts BkrMeta objects into a .bkrmeta db file. -}
 insertBkrMeta :: FilePath -> [BkrMeta] -> IO ()
