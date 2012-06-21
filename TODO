@@ -21,8 +21,8 @@ Done - Handle if we cannot write to the log file (or if getLogFileLocation passe
 - Check that bkr.conf is valid
 
 * 0.2.0
-- add "sync mode" - synchronize the online content with local, removing items online that does not exist locally any more
-- Handle gracefully if not permitted to write .bkrmeta file
+DONE - add "sync mode" - synchronize the online content with local, removing items online that does not exist locally any more
+DONE - Handle gracefully if not permitted to write .bkrmeta file
 - Activate providing MD5 digest on putFile for upload verification
 - Windows support
 - Better documentation
@@ -31,4 +31,3 @@ Done - Handle if we cannot write to the log file (or if getLogFileLocation passe
   2. Detect wrong or not configured S3 bucket name, ask and create.
   3. Detect not configured folders to backup.
   4. Detect not existing folders to backup and warn.
-- Handle gracefully if not permitted to write .bkrmeta file.
