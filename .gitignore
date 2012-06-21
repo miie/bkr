@@ -23,3 +23,5 @@ src/notused.bkr.conf
 
 .#*
 src/bkr-tst.bkr.conf
+
+testsuite/devtest*
