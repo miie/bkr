@@ -5,14 +5,17 @@ bkr is in very early development stage. Right now bkr is rather a synchronizatio
 -}
 
 import System.Bkr.BkrFundare (BkrMeta(..))
-import System.Bkr.BkrConfig (getConfFile, getLogLevel, getBackupFolders, writeBkrMetaFile)
+import System.Bkr.BkrConfig (getConfFile, getLogLevel, getBackupFolders, getIfSynchronizationMode)
 import System.Bkr.BkrLogging (setupLogging, logNotice, logDebug)
+import System.Bkr.BkrLocalFile (writeBkrMetaFile)
 import qualified System.Bkr.BkrLocalFile as F
 import qualified System.Bkr.TargetServices.S3.BkrS3Bucket as S3B
 
 import System.Directory (removeFile)
 import Control.Monad (when)
 import Data.Maybe (isNothing, fromJust)
+
+import qualified Data.Text as T
 
 main :: IO ()
 main = do
@@ -43,7 +46,19 @@ main = do
      logNotice $ show len ++ " files will be uploaded"
      -- For each element in objToUpload upload the local file then create a .bkrm file and upload it
      _ <- mapM putFiles counterList
-     logNotice "done"  
+
+     -- Check if bkr is configured to run in synchronization mode, if yes check for backuped items that should be deleted
+     syncMode <- getIfSynchronizationMode
+     when syncMode (do
+                     logNotice "bkr set in synchronization mode, will check for backed up files to delete (local files will not be affected)."
+                     let objToDeleteFromBackup = filter (`notElem` bkrLocalMeta) bkrS3Meta
+                     let delLen = length objToDeleteFromBackup
+                     logNotice $ show delLen ++ " objects will be deleted from the backup"
+                     _ <- mapM deleteObject objToDeleteFromBackup
+                     logNotice "synchronization done"
+                   )
+
+     logNotice "bkr backup finished"
 
 putFiles :: (BkrMeta, Int, Int) -> IO ()
 putFiles (bkrObj, len, nthObj) = do
@@ -53,5 +68,12 @@ putFiles (bkrObj, len, nthObj) = do
      -- Put local file
      S3B.putBackupFile localPath
      -- Get .bkrm file
-     tmpFilePath <- writeBkrMetaFile (localPath, fileChecksum bkrObj)
+     tmpFilePath <- writeBkrMetaFile localPath bkrObj
      S3B.putBkrMetaFile tmpFilePath >> removeFile tmpFilePath
+
+deleteObject :: BkrMeta -> IO ()
+deleteObject bkrObj = do
+
+     print $ show bkrObj
+     -- Get the object name and delete the object from S3
+     S3B.deleteBackedFile $ T.pack $ "bkrm." ++ (pathChecksum bkrObj) ++ "." ++ (fileChecksum bkrObj)
