@@ -2,18 +2,21 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module System.Bkr.BkrLocalFile ( getBkrMetaForLocalPaths
-                        --, getBkrObjects
-                        --, getAllFolders
-                        --, getAllFiles
-                        ) where
+                               , getFileNameForBkrmFile
+                               , writeBkrMetaFile
+                               --, getBkrObjects
+                               --, getAllFolders
+                               --, getAllFiles
+                               ) where
 
 import System.Bkr.Hasher
 import System.Bkr.BkrFundare
 import System.Bkr.BkrLocalMeta
 import System.Bkr.BkrConfig (getFilesToIgnore, getFileExtensionsToIgnore, getFoldersToIgnore, getFileUpdateCheckType, FileUpdateCheckType(..))
 
+import System.IO (IOMode(..), openBinaryFile, hClose, hPutStrLn)
 import Control.Monad (filterM, liftM)
-import System.Directory (doesDirectoryExist, getDirectoryContents, doesFileExist, getModificationTime)
+import System.Directory (doesDirectoryExist, getDirectoryContents, doesFileExist, getModificationTime, getTemporaryDirectory)
 import System.FilePath ((</>), normalise, takeExtensions, takeDirectory)
 import Prelude hiding (catch)
 import Control.Exception
@@ -141,93 +144,34 @@ getBkrMetaForLocalPaths paths = do
      --mapM folderCompareAndGetBkrMeta (concat allPaths ++ paths) >>= return . concat
      liftM concat (mapM folderCompareAndGetBkrMeta ((++) paths (concat allPaths)))
 
-{-
-getBkrMeta'' :: [FilePath] -> IO [BkrMeta]
-getBkrMeta'' paths = do
-     -- Get all folders, combine with .bkrmeta file for full file path to the .bkrmeta files, filter to to check which .bkrmeta files exist, get BkrMeta objects and finally get BkrMeta_ objects
-     allFolders <- mapM getAllFolders paths
-     allBkrLocalMetaFiles <- filterM doesFileExist (map combine_ (concat allFolders))
-     localMetaDB <- mapM getLocalMeta allBkrLocalMetaFiles
-     let localMeta_ = map BkrMeta_ (concat localMetaDB)
+getFileNameForBkrmFile :: FilePath -> BkrMeta -> String
+getFileNameForBkrmFile path bkrObj = "bkrm." ++ (show $ getHashForString path) ++ "." ++ fileChecksum bkrObj
+
+{-| Take a bkr conf pair and write a .bkrm file in a temporary directory. -}
+writeBkrMetaFile :: FilePath -> BkrMeta -> IO FilePath
+writeBkrMetaFile path bkrObj = do
      
-     -- Get all files
-     allFiles <- mapM getAllFiles paths
-     localMetaFiles <- mapM getBkrMeta (concat allFiles)
-     let localMetaFiles_ = map BkrMeta_ localMetaFiles
-     let notCached = filter (`notElem` localMeta_) localMetaFiles_
-
-     let allFiles = map fullPath (map bkrMeta notCached)
-
-     notCachedMeta <- mapM getBkrMeta allFiles --(fullPath (BkrMeta notCached))
-
-
-     --let allMeta = (concat localMetaDB) ++ notCachedMeta
-
-     return $ (concat localMetaDB) ++ notCachedMeta
--}
-{-
-getAllFiles :: FilePath -> IO [FilePath]
-getAllFiles topPath = do
-     names <- getDirectoryContents topPath `catch` \ (ex :: IOException) -> handleIO ex topPath
-     --filesToIgnore <- getFilesToIgnore
-     filesToIgnore <- getFilesToFilter
-     fileExtToIgnore <- getFileExtensionsToIgnore
-     foldersToIgnore <- getFoldersToIgnore
-     -- Filter files on extension and files to ignore
-     --let properNames = (filterExt fileExtToIgnore) $ filterFile ([".", "..", ".bkrmeta"] ++ filesToIgnore) names
-     let properNames = filterExt fileExtToIgnore $ filterFile filesToIgnore names
-     -- Map files with topPath to get full path and filter on folders to ignore
-     let allPaths = filterFolder foldersToIgnore $ map (topPath </>) properNames
-     paths <- forM allPaths $ \path -> do
-           isDirectory <- doesDirectoryExist path
-           if isDirectory
-              then getAllFiles path
-              else return [normalise path]
-     return $ concat paths
--}
-{-
-getAllFilesOld :: FilePath -> IO [FilePath]
-getAllFilesOld topPath = do
-     names <- getDirectoryContents topPath `catch` \ (ex :: IOException) -> handleIO ex topPath
-     --filesToIgnore <- getFilesToIgnore
-     filesToIgnore <- getFilesToFilter
-     --let properNames = filter (`notElem` ([".", ".."] ++ filesToIgnore)) names
-     let properNames = filter (`notElem` (filesToIgnore)) names
-     print $ show properNames
-     paths <- forM properNames $ \name -> do
-           let path = topPath </> name
-           isDirectory <- doesDirectoryExist path
-           if isDirectory
-              then getAllFiles path
-              else return [normalise path]
-     return $ concat paths
--}
-{-
-getBkrMeta :: FilePath -> IO BkrMeta
-getBkrMeta path = do
-     fileHash <- getFileHash path
-     return $ BkrMeta path (show fileHash) (show $ getHashForString path)
--}
-{-
-getBkrObjects :: FilePath -> IO [BkrMeta]
-getBkrObjects path = --do
-     --allFiles <- getAllFiles path
-     --mapM getBkrMeta allFiles
-     getAllFiles path >>= mapM getBkrMeta
--}
-{-
-getLocalBkrObjects :: FilePath -> IO [BkrMeta]
-getLocalBkrObjects path = do
-     folders <- getAllFolders path
-     return $ mapM getBkrMetaFromDB folders
--}
-{-
-getBkrMeta' :: FilePath -> IO [BkrMeta]
-getBkrMeta' = do
-     folders <- getAllFolders path
-     return $ concat $ map getBkrMeta'' folders
--}
-{-
-combine_ :: FilePath -> FilePath
-combine_ path = (++) path "/.bkrmeta"
--}
+     -- Get system tmp dir
+     tmpDir <- getTemporaryDirectory
+     -- Get hash of the file name
+     --let fullPathHash = show $ getHashForString path
+     -- Get the full file path to the .bkrm file (<full path hash:file hash.bkrm>)
+     -- Note to self, do not change how the file name is built without updating deleteObject function used by synchronization mode
+     --let fullPath = tmpDir ++ "/" ++ "bkrm." ++ fullPathHash ++ "." ++ checksumForFile
+     let fullPath' = tmpDir ++ "/" ++ getFileNameForBkrmFile path bkrObj
+     -- Get file modification time
+     modTime <- getModificationTime path
+     -- Open a file handle
+     hndl <- openBinaryFile fullPath' WriteMode
+     -- Map over a list of the lines to write to the file
+     let hPutStrLnHndl = hPutStrLn hndl
+     _ <- mapM hPutStrLnHndl ["[BkrMetaInfo]" 
+                              , "fullpath: " ++ path
+                              , "checksum: " ++ fileChecksum bkrObj
+                              , "modificationtime: " ++ show modTime
+                              , "fullpathchecksum: " ++ (show $ getHashForString path)
+                              , "modificationtimechecksum: " ++ (show $ getHashForString $ show modTime)
+                              ]
+     -- Close the handle and return the file path
+     hClose hndl
+     return fullPath'
