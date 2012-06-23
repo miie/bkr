@@ -2,16 +2,15 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module System.Bkr.BkrLocalMeta ( getLocalMeta
-                        , insertBkrMeta
-                        , deleteBkrMeta
-                        ) where
+                               , insertBkrMeta
+                               , deleteBkrMeta
+                               ) where
 
-import System.Bkr.BkrLogging
-import System.Bkr.BkrFundare
+import System.Bkr.BkrLogging (logDebug, logCritical)
+import System.Bkr.BkrFundare (BkrMeta(..))
 import System.Bkr.BkrConfig (FileUpdateCheckType(..))
---import Bkr.Hasher (getHashForString)
 
-import Database.HDBC
+import Database.HDBC (SqlValue(..), SqlError(..), IConnection(..), executeMany, fromSql, quickQuery', toSql)
 import Database.HDBC.Sqlite3 as SL
 
 import Prelude hiding (catch)
@@ -51,10 +50,12 @@ set \"/path/to/db/file.db\" \"INSERT INTO table VALUES (?, ?)\" [[toSql (1 :: In
 @
 -}
 set :: FilePath -> String -> [[SqlValue]] -> IO ()
-set dbFilePath query values = 
-     catch (do --TODO!!! Document this added catch!!!
-             logDebug $ "set: called with query: " ++ query -- ++ "\nvalues: " ++ (show values)
+set dbFilePath query values = do
+     logDebug $ "set: called with query: " ++ query
+     -- Catch error getting conn and return IO () if we cannot get a connection to the db (normally because we don't have write premissions to the folder). No real biggie if this happens but getting BkrMeta objects will be slower since we cannot cache them in the .bkrmeta file.
+     catch (do
              conn <- getConn dbFilePath
+             -- Catch error writing to the db and rollback the transaction if this happens
              catch (do 
                      stmt <- prepare conn query
                      executeMany stmt values
@@ -62,12 +63,11 @@ set dbFilePath query values =
                      --doDisconnect conn)
                    (\e -> do 
                            let err = show (e :: SqlError)
-                           logCritical $ "set: got SqlError: " ++ err ++ ", will rollback the transaction"
+                           logDebug $ "set: got SqlError: " ++ err ++ ", will rollback the transaction"
                            doRollback conn
                            doDisconnect conn))
-           (\e -> do --TODO!!! Document this added catch!!!
-                   let err = show (e :: SqlError) 
-                   logDebug $ "set: could not get db connection, got error:\n" ++ err
+           (\e -> do
+                   logDebug $ "set: could not get db connection, got error:\n" ++ show (e :: SqlError)
                    return ())
 
 -- End db convenience functions --
@@ -83,19 +83,21 @@ setTable dbFilePath = do
 {-| Filter function that gets a random number between 0-9 and checks if the number is larger then noGets. If larger returns IO True (object is read from the local db) and if smaller the object is deleted from the local db (insertBkrMeta will insert the object). -}
 objUpdateFilter :: IConnection conn => conn -> [SqlValue] -> IO Bool
 --objUpdateFilter conn [pathChecksum, fullPath, fileChecksum, fileModTime, fileModChecksum, noGets] = do
-objUpdateFilter conn [pathChecksum_, fullPath_, _, _, _, noGets_] = do
-     randomNo <- getStdRandom (randomR (0,9))
-     if randomNo > noGets_'
-        then return True
-        else do
-             print $ "objUpdateFilter: will delete obj: " ++ show fullPath_
-             let query = "DELETE FROM bkrmeta WHERE pathchecksum = ?"
-             _ <- quickQuery' conn query [pathChecksum_] `catch` \ (err :: SqlError) -> do
-                                                               logCritical $ "objUpdateFilter: got sql error: " ++ show err
-                                                               return []
-             return False
-
-     where noGets_' = fromSql noGets_ :: Int
+objUpdateFilter conn [pathChecksum_, fullPath_, _, _, _, noGets_] = 
+     catch (do 
+             randomNo <- getStdRandom (randomR (0,9))
+             if randomNo > (fromSql noGets_ :: Int)
+             then return True
+             else do
+                   print $ "objUpdateFilter: will delete obj: " ++ show fullPath_
+                   let query = "DELETE FROM bkrmeta WHERE pathchecksum = ?"
+                   _ <- quickQuery' conn query [pathChecksum_] `catch` \ (err :: SqlError) -> do
+                                                                                               logCritical $ "objUpdateFilter: got sql error: " ++ show err
+                                                                                               return []
+                   return False)
+             (\e -> do
+                     logDebug $ "objUpdateFilter: could not get db connection, got error:\n" ++ show (e :: SqlError)
+                     return False)
 objUpdateFilter _ _ = error "Failed to match expected pattern"
 
 {-| Gets BkrMeta objects from a .bkrmeta db file. getLocalMeta increments nogets every time it's called and it filters objects with objUpdateFilter. -}
@@ -113,23 +115,22 @@ getLocalMeta fileUpdateCheckType dbFilePath = do
      let query_ = "UPDATE bkrmeta SET nogets = nogets + 1"
      _ <- quickQuery' conn query_ [] `catch` \ (err :: SqlError) -> do
                                                                logCritical $ "getLocalMeta: got sql error when incrementing nogets: " ++ show err ++ ", will disconnect conn"
-                                                               doDisconnect conn
+                                                               --doDisconnect conn
                                                                return []
      -- Use smart update or check by date only
+     -- Catch commit and disconnect errors, they are probably due to not having write permissions to the folder that we are backing up
      if fileUpdateCheckType == FUCSmart
         then do
-           --filteredObjects <- filterM (\x -> objUpdateFilter conn x) result
            filteredObjects <- filterM (objUpdateFilter conn) result
-           doCommit conn
-           doDisconnect conn
+           doCommit conn `catch` \ (err :: SqlError) -> logDebug $ "getLocalMeta: got sql error on commit:\n" ++ show err
+           doDisconnect conn `catch` \ (err :: SqlError) -> logDebug $ "getLocalMeta: got sql error on disconnect:\n" ++ show err
            return $ map convRow filteredObjects
         else do
-           doCommit conn
-           doDisconnect conn
+           doCommit conn `catch` \ (err :: SqlError) -> logDebug $ "getLocalMeta: got sql error on commit:\n" ++ show err
+           doDisconnect conn `catch` \ (err :: SqlError) -> logDebug $ "getLocalMeta: got sql error on disconnect:\n" ++ show err
            return $ map convRow result
 
      where convRow :: [SqlValue] -> BkrMeta
-           --convRow [pathChecksum, fullPath, fileChecksum, fileModTime, fileModChecksum, noGets] = 
            convRow [pathChecksum_, fullPath_, fileChecksum_, fileModTime_, fileModChecksum_, _] = 
                    BkrMeta path fileHash pathHash fileMod fileModHash
                    where path        = fromSql fullPath_ :: String
@@ -141,10 +142,12 @@ getLocalMeta fileUpdateCheckType dbFilePath = do
 
 {-| Checks if bkrmeta table exists and inserts it if it doesn't. -}
 setTableIfNeeded :: FilePath -> IO ()
-setTableIfNeeded dbFilePath = 
-     catch (do --TODO!!! Document this added catch!!!
-             logDebug $ "setTableIfNeeded: called for path: " ++ dbFilePath
+setTableIfNeeded dbFilePath = do
+     logDebug $ "setTableIfNeeded: called for path: " ++ dbFilePath
+     -- Catch error getting conn and return IO () if we cannot get a connection to the db (normally because we don't have write premissions to the folder). No real biggie if this happens but getting BkrMeta objects will be slower since we cannot cache them in the .bkrmeta file.
+     catch (do
              conn <- getConn dbFilePath
+             -- Catch error writing to the db and rollback the transaction if this happens
              catch (do
                      --result <- quickQuery' conn "SELECT * FROM bkrmeta LIMIT 1" []
                      _ <- quickQuery' conn "SELECT * FROM bkrmeta LIMIT 1" []
@@ -156,9 +159,8 @@ setTableIfNeeded dbFilePath =
                            logDebug $ "setTableIfNeeded: got sql error: " ++ err ++ ", will set table"
                            doDisconnect conn
                            setTable dbFilePath))
-           (\e -> do --TODO!!! Document this added catch!!!
-                   let err = show (e :: SqlError) 
-                   logDebug $ "setTableIfNeeded: could not get db connection, got error:\n" ++ err
+           (\e -> do
+                   logDebug $ "setTableIfNeeded: could not get db connection, got error:\n" ++ show (e :: SqlError)
                    return ())
 
 {-| Inserts BkrMeta objects into a .bkrmeta db file. -}
