@@ -9,7 +9,7 @@ module System.Bkr.TargetServices.S3.BkrS3Bucket ( getBkrObjects
 
 import System.Bkr.BkrConfig (getUseS3ReducedRedundancy, getConfPairsFromByteString')
 import System.Bkr.BkrFundare (BkrMeta(..))
-import System.Bkr.Hasher (getHashForString)
+import System.Bkr.Hasher (getHashForString, getFileHash')
 import System.Bkr.BkrLogging (logCritical, logDebug, logNotice)
 import System.Bkr.TargetServices.S3.BkrAwsConfig (getS3Config, getS3BucketName)
 
@@ -23,11 +23,16 @@ import Control.Concurrent (threadDelay)
 import Data.Maybe (fromJust)
 import Data.Conduit (($$))
 import Data.Conduit.Binary (sinkIOHandle)
+--import Codec.Binary.UTF8.String (decode)
 
 import qualified Aws
 import qualified Aws.S3 as S3
 import qualified Data.Text as T
 import qualified Data.ByteString as B
+--import qualified Data.ByteString.UTF8 as BU
+--import qualified Data.ByteString.Char8 as BC8
+import qualified Data.ByteString.Base64 as BB64
+--import qualified Data.Text.Encoding as TE
 import qualified Control.Exception as C
 import qualified Data.Knob as K
 
@@ -48,8 +53,9 @@ getBkrObjectKeys gbMarker objList = do
                                                                   , S3.gbMarker    = Just gbMarker
                                                                   , S3.gbMaxKeys   = Nothing
                                                                   , S3.gbPrefix    = Just $ T.pack "bkrm"
-                                                                  } `C.catch` \ (ex :: C.SomeException) -> do
+                                                                  } `C.catch` \ (ex :: S3.S3Error) -> do
                                                                   logCritical "Failed to get objects from S3 bucket, please check that your S3 credentials in the bkr configuration file are set correctly. The error was:"
+                                                                  handleS3Error ex
                                                                   C.throwIO ex
      
      -- Print the response metadata.
@@ -98,19 +104,22 @@ putBackupFile filePath = do
      --let uploadName = T.pack $ show (getHashForString filePath) ++ "::" ++ takeFileName filePath
      
      -- Get MD5 hash for file
-     --contentMD5 <- getFileHash path
-     --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
-     --putFile filePath uploadName Nothing 0
-     putFile filePath (getFileNameForPut filePath) Nothing 0
+     contentMD5 <- getFileHash' filePath
+     
+     -- Upload the file, the MD5 hash needs to be base64 encoded (S3 requirement)
+     putFile filePath (getFileNameForPut filePath) (Just $ BB64.encode contentMD5) 0
+     --putFile filePath (getFileNameForPut filePath) Nothing 0
 
 putBkrMetaFile :: FilePath -> IO ()
 putBkrMetaFile filePath = do
 
      let uploadName = T.pack $ takeFileName filePath
      -- Get MD5 hash for file
-     --contentMD5 <- getFileHash path
-     --putFile path uploadName (Just $ BUTF8.fromString $ show contentMD5)
-     putFile filePath uploadName Nothing 0
+     contentMD5 <- getFileHash' filePath
+     
+     -- Upload the file, the MD5 hash needs to be base64 encoded (S3 requirement)
+     putFile filePath uploadName (Just $ BB64.encode contentMD5) 0
+     --putFile filePath uploadName Nothing 0
 
 {-| Upload file to S3. putFile will handle a failed attempt to upload the file by waiting 60 seconds and then retrying. If this fails five times it will raise an IO Error. -}
 putFile :: FilePath -> T.Text -> Maybe B.ByteString -> Int -> IO ()
@@ -237,3 +246,10 @@ getBkrObject bkrmFileName = do
      let modificationTime_         = fromJust $ lookup "modificationtime" pairS
      let modificationTimeChecksum_ = fromJust $ lookup "modificationtimechecksum" pairS
      return $ BkrMeta path_ checksum_ (show $ getHashForString path_) modificationTime_ modificationTimeChecksum_
+
+handleS3Error :: S3.S3Error -> IO ()
+handleS3Error err = do
+
+     case show $ S3.s3ErrorCode err of
+          "\"InvalidAccessKeyId\"" -> logNotice "handleS3Error: invalid access key id"
+          _                        -> logCritical $ "unknown error: " ++ show err
