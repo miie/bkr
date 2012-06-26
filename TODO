@@ -23,7 +23,7 @@ Done - Handle if we cannot write to the log file (or if getLogFileLocation passe
 * 0.2.0
 DONE - add "sync mode" - synchronize the online content with local, removing items online that does not exist locally any more
 DONE - Handle gracefully if not permitted to write .bkrmeta file
-- Activate providing MD5 digest on putFile for upload verification
+DONE - Activate providing MD5 digest on putFile for upload verification
 - Windows support
 - Better documentation
 - Better error handling:
